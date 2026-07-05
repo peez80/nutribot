@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app/app
+      - ./_nutrition_data_volume:/app/data
+      - ~/.gemini/antigravity-cli:/root/.gemini/antigravity-cli
+    environment:
+      - DATA_DIR=/app/data
+
+volumes:
+  nutrition_data:

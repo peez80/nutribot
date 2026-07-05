@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriBot - KI Ernährungstagebuch</title>
+    <!-- Modern Typography: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+    <!-- Phosphor Icons for premium aesthetic -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <div class="header-title">
+                <i class="ph-fill ph-leaf"></i>
+                <h1>NutriBot</h1>
+            </div>
+            <p class="header-subtitle">Dein intelligentes Ernährungstagebuch</p>
+        </header>
+
+        <main class="chat-container" id="chat-container">
+            <!-- Chat messages will be injected here -->
+            <div class="message ai-message">
+                <div class="message-bubble">
+                    Hallo! Was hast du heute gegessen oder wie fühlst du dich?
+                </div>
+            </div>
+        </main>
+
+        <footer class="input-area">
+            <div class="image-preview-container" id="image-preview-container" style="display: none;">
+                <img id="image-preview" src="" alt="Vorschau" />
+                <button class="icon-button danger" id="remove-image-btn" title="Bild entfernen">
+                    <i class="ph-bold ph-x"></i>
+                </button>
+            </div>
+            
+            <form id="chat-form" class="input-form">
+                <label for="image-upload" class="icon-button" title="Bild hinzufügen">
+                    <i class="ph-bold ph-camera"></i>
+                </label>
+                <input type="file" id="image-upload" accept="image/*" style="display: none;" />
+                
+                <input type="text" id="message-input" placeholder="Nachricht eingeben..." autocomplete="off" required />
+                
+                <button type="submit" class="icon-button primary" id="send-btn" title="Senden">
+                    <i class="ph-bold ph-paper-plane-right"></i>
+                </button>
+            </form>
+        </footer>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="auth-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h2><i class="ph-bold ph-lock-key"></i> Authentifizierung erforderlich</h2>
+            <p>Bitte logge dich mit deinem Antigravity-Konto ein, um das Tagebuch zu nutzen.</p>
+            
+            <div class="auth-steps">
+                <div class="step">
+                    <span class="step-number">1</span>
+                    <p>Klicke auf diesen Link, um dich im Browser anzumelden:</p>
+                </div>
+                <div class="url-container">
+                    <a id="auth-url-link" href="#" target="_blank" rel="noopener noreferrer">Lade Login-URL...</a>
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">2</span>
+                    <p>Kopiere den Autorisierungscode und füge ihn hier ein:</p>
+                </div>
+                <form id="auth-form" class="auth-form">
+                    <input type="text" id="auth-code-input" placeholder="Code einfügen..." required autocomplete="off">
+                    <button type="submit" class="primary-btn" id="verify-btn">Verifizieren</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
