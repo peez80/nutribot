@@ -48,7 +48,7 @@ jobs:
 
       - name: Run Tests in Docker Container
         run: |
-          docker run --rm peez/nutribot:latest pytest
+          docker run --rm -v ${{ github.workspace }}/tests:/app/tests peez/nutribot:latest pytest /app/tests
 
       - name: Push Docker image
         uses: docker/build-push-action@v5
