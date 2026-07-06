@@ -39,3 +39,18 @@ Data such as logged meals and symptoms are stored in the local `_nutrition_data_
 - `app/storage.py`: Handles saving the structured parsed data locally.
 - `app/static/`: Contains the frontend assets (`index.html`, `app.js`, `index.css`).
 - `docker-compose.yml`: Defines the services and volume mappings for the Docker environment.
+
+## Testing
+
+The project uses `pytest` for automated testing, including unit tests and integration tests.
+
+To run the test suite, use Docker Compose to execute `pytest` within the container environment:
+
+```bash
+docker-compose run --rm web pytest tests/
+```
+
+This will run tests for:
+- Local storage logic (`tests/test_storage.py`)
+- API endpoints and chat behavior (`tests/test_main.py`)
+- `agy` CLI interaction and JSON parsing (`tests/test_agy_client.py`)

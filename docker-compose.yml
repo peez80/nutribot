@@ -7,6 +7,7 @@ services:
       - "8000:8000"
     volumes:
       - ./app:/app/app
+      - ./tests:/app/tests
       - ./_nutrition_data_volume:/app/data
       - ~/.gemini/antigravity-cli:/root/.gemini/antigravity-cli
     environment:
