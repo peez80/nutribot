@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const chatForm = document.getElementById("chat-form");
     const messageInput = document.getElementById("message-input");
     const imageUpload = document.getElementById("image-upload");
+    const cameraUpload = document.getElementById("camera-upload");
     const imagePreviewContainer = document.getElementById("image-preview-container");
     const imagePreview = document.getElementById("image-preview");
     const removeImageBtn = document.getElementById("remove-image-btn");
@@ -59,23 +60,28 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     // Handle Image Selection
-    imageUpload.addEventListener("change", (e) => {
+    const handleImageSelection = (e, otherInputToClear) => {
         if (e.target.files && e.target.files[0]) {
             selectedImageFile = e.target.files[0];
+            otherInputToClear.value = ""; // Clear the other input to avoid conflicts
             const reader = new FileReader();
-            reader.onload = (e) => {
-                imagePreview.src = e.target.result;
+            reader.onload = (event) => {
+                imagePreview.src = event.target.result;
                 imagePreviewContainer.style.display = "block";
             };
             reader.readAsDataURL(selectedImageFile);
             messageInput.focus();
         }
-    });
+    };
+
+    imageUpload.addEventListener("change", (e) => handleImageSelection(e, cameraUpload));
+    cameraUpload.addEventListener("change", (e) => handleImageSelection(e, imageUpload));
 
     // Remove selected image
     removeImageBtn.addEventListener("click", () => {
         selectedImageFile = null;
         imageUpload.value = "";
+        cameraUpload.value = "";
         imagePreviewContainer.style.display = "none";
         imagePreview.src = "";
     });
@@ -121,6 +127,7 @@ document.addEventListener("DOMContentLoaded", () => {
         messageInput.value = "";
         selectedImageFile = null;
         imageUpload.value = "";
+        cameraUpload.value = "";
         imagePreviewContainer.style.display = "none";
         
         showTypingIndicator();

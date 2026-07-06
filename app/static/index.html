@@ -40,8 +40,13 @@
             </div>
             
             <form id="chat-form" class="input-form">
-                <label for="image-upload" class="icon-button" title="Bild hinzufügen">
+                <label for="camera-upload" class="icon-button" title="Foto aufnehmen">
                     <i class="ph-bold ph-camera"></i>
+                </label>
+                <input type="file" id="camera-upload" accept="image/*" capture="environment" style="display: none;" />
+                
+                <label for="image-upload" class="icon-button" title="Bild aus Galerie wählen">
+                    <i class="ph-bold ph-image"></i>
                 </label>
                 <input type="file" id="image-upload" accept="image/*" style="display: none;" />
                 
