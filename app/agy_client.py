@@ -135,7 +135,10 @@ class AgyClient:
         for msg in context_messages:
             role = "User" if msg.get("is_user") else "AI"
             prompt += f"{role}: {msg.get('text')}\n"
-        prompt += f"\nUser: {new_message}\n"
+        if new_message:
+            prompt += f"\nUser: {new_message}\n"
+        else:
+            prompt += f"\nUser: [Bild gesendet]\n"
         
         if image_path:
             prompt += f"\nBitte berücksichtige für deine Analyse auch dieses Bild: {image_path}\n"

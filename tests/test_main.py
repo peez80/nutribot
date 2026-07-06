@@ -85,3 +85,29 @@ def test_auth_endpoints(mock_agy_client):
     resp_verify = client.post("/api/auth/verify", json={"code": "12345"})
     assert resp_verify.status_code == 200
     assert resp_verify.json() == {"success": True}
+
+@patch("app.main.agy_client")
+@patch("app.main.save_entry")
+def test_chat_endpoint_image_only_no_text(mock_save_entry, mock_agy_client):
+    mock_response = {
+        "type": "meal",
+        "data": {"food": "Unbekannt"},
+        "reply": "Bild wurde analysiert."
+    }
+    mock_agy_client.process_message.return_value = mock_response
+    
+    # Create a dummy image file, empty message parameter
+    files = {'image': ('test.jpg', b'dummy_image_data', 'image/jpeg')}
+    data = {'message': ''}
+    
+    response = client.post("/api/chat", data=data, files=files)
+    
+    assert response.status_code == 200
+    json_resp = response.json()
+    assert json_resp["reply"] == "Bild wurde analysiert."
+    
+    mock_agy_client.process_message.assert_called_once()
+    args, kwargs = mock_agy_client.process_message.call_args
+    assert args[1] == ""
+    assert args[2] is not None
+    assert args[2].endswith(".jpg")

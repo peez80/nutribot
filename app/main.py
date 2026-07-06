@@ -51,13 +51,20 @@ async def get_history():
 
 @app.post("/api/chat")
 async def chat_endpoint(
-    message: str = Form(...),
+    message: str = Form(""),
     image: Optional[UploadFile] = File(None)
 ):
     global chat_history
     
     # Save the user's message to history
-    chat_history.append({"text": message, "is_user": True})
+    display_msg = message
+    if image and image.filename:
+        if not display_msg:
+            display_msg = "[Bild gesendet]"
+        else:
+            display_msg += " [Bild angehängt]"
+            
+    chat_history.append({"text": display_msg, "is_user": True})
     
     image_path = None
     if image and image.filename:

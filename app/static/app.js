@@ -112,7 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Prepare form data
         const formData = new FormData();
-        formData.append("message", text || "Bitte analysiere dieses Bild.");
+        formData.append("message", text);
         if (selectedImageFile) {
             formData.append("image", selectedImageFile);
         }
