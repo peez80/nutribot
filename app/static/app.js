@@ -23,13 +23,26 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     // Append a message to the chat
-    const appendMessage = (text, isUser) => {
+    const appendMessage = (text, isUser, imageUrl = null) => {
         const msgDiv = document.createElement("div");
         msgDiv.className = `message ${isUser ? "user-message" : "ai-message"}`;
         
         const bubble = document.createElement("div");
         bubble.className = "message-bubble";
-        bubble.textContent = text;
+        
+        if (text) {
+            const textDiv = document.createElement("div");
+            textDiv.textContent = text;
+            bubble.appendChild(textDiv);
+        }
+        
+        if (imageUrl) {
+            const img = document.createElement("img");
+            img.src = imageUrl;
+            img.alt = "Angehängtes Bild";
+            img.className = "chat-image";
+            bubble.appendChild(img);
+        }
         
         msgDiv.appendChild(bubble);
         chatContainer.appendChild(msgDiv);
@@ -94,7 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (history && history.length > 0) {
                 chatContainer.innerHTML = ''; // clear initial greeting if there's history
                 history.forEach(msg => {
-                    appendMessage(msg.text, msg.is_user);
+                    appendMessage(msg.text, msg.is_user, msg.image_url);
                 });
             }
         } catch (error) {
@@ -111,10 +124,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Display user message
         let displayMsg = text;
+        let localImageUrl = null;
         if (selectedImageFile) {
             displayMsg += displayMsg ? " [Bild angehängt]" : "[Bild gesendet]";
+            localImageUrl = URL.createObjectURL(selectedImageFile);
         }
-        appendMessage(displayMsg, true);
+        appendMessage(displayMsg, true, localImageUrl);
 
         // Prepare form data
         const formData = new FormData();

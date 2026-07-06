@@ -386,3 +386,11 @@ body {
     cursor: not-allowed;
 }
 
+/* Chat Image */
+.chat-image {
+    max-width: 100%;
+    border-radius: 0.5rem;
+    margin-top: 0.5rem;
+    display: block;
+}
+

@@ -44,6 +44,9 @@ def test_chat_endpoint_text_only(mock_save_entry, mock_agy_client):
 @patch("app.main.agy_client")
 @patch("app.main.save_entry")
 def test_chat_endpoint_with_image(mock_save_entry, mock_agy_client):
+    from app.main import chat_history
+    chat_history.clear()
+
     mock_response = {
         "type": "meal",
         "data": {"food": "Pizza"},
@@ -67,6 +70,23 @@ def test_chat_endpoint_with_image(mock_save_entry, mock_agy_client):
     assert args[1] == "Hier ist mein Essen"
     assert args[2] is not None
     assert args[2].endswith(".jpg")
+    
+    # Verify history contains image_url
+    hist_resp = client.get("/api/history")
+    assert hist_resp.status_code == 200
+    hist = hist_resp.json()
+    assert len(hist) == 2 # 1 user message, 1 ai message
+    
+    user_msg = hist[0]
+    assert user_msg["is_user"] is True
+    assert "image_url" in user_msg
+    assert user_msg["image_url"].startswith("/uploads/")
+    assert user_msg["image_url"].endswith(".jpg")
+    
+    # Test serving the image
+    img_resp = client.get(user_msg["image_url"])
+    assert img_resp.status_code == 200
+    assert img_resp.content == b'dummy_image_data'
 
 @patch("app.main.agy_client")
 def test_auth_endpoints(mock_agy_client):
@@ -89,6 +109,9 @@ def test_auth_endpoints(mock_agy_client):
 @patch("app.main.agy_client")
 @patch("app.main.save_entry")
 def test_chat_endpoint_image_only_no_text(mock_save_entry, mock_agy_client):
+    from app.main import chat_history
+    chat_history.clear()
+
     mock_response = {
         "type": "meal",
         "data": {"food": "Unbekannt"},

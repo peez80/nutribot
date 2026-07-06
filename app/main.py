@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from .agy_client import agy_client
-from .storage import init_storage, save_entry
+from .storage import init_storage, save_entry, DATA_DIR
 
 app = FastAPI(title="AI Nutrition Diary App")
 
@@ -31,6 +31,10 @@ static_dir = os.path.join(os.path.dirname(__file__), "static")
 os.makedirs(static_dir, exist_ok=True)
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+# Mount uploads directory
+uploads_dir = os.path.join(DATA_DIR, "uploads")
+app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
+
 # In-memory history for simplicity in this demo. 
 # A real app might store this in a database or session.
 chat_history = []
@@ -39,6 +43,7 @@ MAX_CONTEXT_MESSAGES = 5
 class ChatMessage(BaseModel):
     text: str
     is_user: bool
+    image_url: Optional[str] = None
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_index():
@@ -56,35 +61,39 @@ async def chat_endpoint(
 ):
     global chat_history
     
-    # Save the user's message to history
     display_msg = message
+    image_path = None
+    image_url = None
+    
     if image and image.filename:
+        # Save uploaded image permanently
+        ext = os.path.splitext(image.filename)[1]
+        filename = f"{uuid.uuid4().hex}{ext}"
+        image_path = os.path.join(DATA_DIR, "uploads", filename)
+        
+        contents = await image.read()
+        with open(image_path, "wb") as f:
+            f.write(contents)
+            
+        image_url = f"/uploads/{filename}"
+        
         if not display_msg:
             display_msg = "[Bild gesendet]"
         else:
             display_msg += " [Bild angehängt]"
             
-    chat_history.append({"text": display_msg, "is_user": True})
-    
-    image_path = None
-    if image and image.filename:
-        # Save uploaded image to a temporary file
-        ext = os.path.splitext(image.filename)[1]
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
-        contents = await image.read()
-        temp_file.write(contents)
-        temp_file.close()
-        image_path = temp_file.name
+    # Save the user's message to history
+    chat_history.append({
+        "text": display_msg, 
+        "is_user": True,
+        "image_url": image_url
+    })
 
     # Get the context (last N messages, excluding the current one)
     context = chat_history[-(MAX_CONTEXT_MESSAGES+1):-1]
     
     # Process via agy
     parsed_response = agy_client.process_message(context, message, image_path)
-    
-    # Clean up the temporary image file
-    if image_path and os.path.exists(image_path):
-        os.remove(image_path)
         
     # Extract data
     entry_type = parsed_response.get("type", "unknown")

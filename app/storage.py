@@ -6,8 +6,9 @@ from datetime import datetime, timezone
 DATA_DIR = os.getenv("DATA_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "data"))
 
 def init_storage():
-    """Ensure the base data directory exists."""
+    """Ensure the base data directory and subdirectories exist."""
     os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(os.path.join(DATA_DIR, "uploads"), exist_ok=True)
 
 def save_entry(entry_type: str, raw_input: str, structured_data: dict) -> str:
     """
