@@ -137,13 +137,13 @@ class AgyClient:
             prompt += f"{role}: {msg.get('text')}\n"
         prompt += f"\nUser: {new_message}\n"
         
+        if image_path:
+            prompt += f"\nBitte berücksichtige für deine Analyse auch dieses Bild: {image_path}\n"
+            
         # We need to instruct agy to output JSON so we can parse it
         prompt += "\nPlease analyze this and output valid JSON containing 'type' (meal/symptom), 'data' (extracted info), and 'reply' (a friendly message to the user)."
 
         cmd = [self.executable_path, "--prompt", prompt]
-        
-        if image_path:
-            cmd.extend(["--image", image_path])
 
         try:
             # We use text=True to get a string back, capture stdout and stderr
