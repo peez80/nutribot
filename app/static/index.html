@@ -33,22 +33,19 @@
 
         <footer class="input-area">
             <div class="image-preview-container" id="image-preview-container" style="display: none;">
-                <img id="image-preview" src="" alt="Vorschau" />
-                <button class="icon-button danger" id="remove-image-btn" title="Bild entfernen">
-                    <i class="ph-bold ph-x"></i>
-                </button>
+                <!-- Previews will be injected here via JS -->
             </div>
             
             <form id="chat-form" class="input-form">
                 <label for="camera-upload" class="icon-button" title="Foto aufnehmen">
                     <i class="ph-bold ph-camera"></i>
                 </label>
-                <input type="file" id="camera-upload" accept="image/*" capture="environment" style="display: none;" />
+                <input type="file" id="camera-upload" accept="image/*" capture="environment" multiple style="display: none;" />
                 
                 <label for="image-upload" class="icon-button" title="Bild aus Galerie wählen">
                     <i class="ph-bold ph-image"></i>
                 </label>
-                <input type="file" id="image-upload" accept="image/*" style="display: none;" />
+                <input type="file" id="image-upload" accept="image/*" multiple style="display: none;" />
                 
                 <input type="text" id="message-input" placeholder="Nachricht eingeben..." autocomplete="off" />
                 

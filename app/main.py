@@ -43,7 +43,7 @@ MAX_CONTEXT_MESSAGES = 5
 class ChatMessage(BaseModel):
     text: str
     is_user: bool
-    image_url: Optional[str] = None
+    image_urls: List[str] = []
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_index():
@@ -57,43 +57,49 @@ async def get_history():
 @app.post("/api/chat")
 async def chat_endpoint(
     message: str = Form(""),
-    image: Optional[UploadFile] = File(None)
+    images: List[UploadFile] = File([])
 ):
     global chat_history
     
+    valid_images = [img for img in images if img.filename]
+    if len(valid_images) > 5:
+        return JSONResponse(status_code=400, content={"error": "Maximal 5 Bilder erlaubt"})
+        
     display_msg = message
-    image_path = None
-    image_url = None
+    image_paths = []
+    image_urls = []
     
-    if image and image.filename:
-        # Save uploaded image permanently
-        ext = os.path.splitext(image.filename)[1]
-        filename = f"{uuid.uuid4().hex}{ext}"
-        image_path = os.path.join(DATA_DIR, "uploads", filename)
-        
-        contents = await image.read()
-        with open(image_path, "wb") as f:
-            f.write(contents)
+    if valid_images:
+        for img in valid_images:
+            # Save uploaded image permanently
+            ext = os.path.splitext(img.filename)[1]
+            filename = f"{uuid.uuid4().hex}{ext}"
+            img_path = os.path.join(DATA_DIR, "uploads", filename)
             
-        image_url = f"/uploads/{filename}"
-        
+            contents = await img.read()
+            with open(img_path, "wb") as f:
+                f.write(contents)
+                
+            image_paths.append(img_path)
+            image_urls.append(f"/uploads/{filename}")
+            
         if not display_msg:
-            display_msg = "[Bild gesendet]"
+            display_msg = f"[{len(valid_images)} Bild(er) gesendet]"
         else:
-            display_msg += " [Bild angehängt]"
+            display_msg += f" [{len(valid_images)} Bild(er) angehängt]"
             
     # Save the user's message to history
     chat_history.append({
         "text": display_msg, 
         "is_user": True,
-        "image_url": image_url
+        "image_urls": image_urls
     })
 
     # Get the context (last N messages, excluding the current one)
     context = chat_history[-(MAX_CONTEXT_MESSAGES+1):-1]
     
     # Process via agy
-    parsed_response = agy_client.process_message(context, message, image_path)
+    parsed_response = agy_client.process_message(context, message, image_paths)
         
     # Extract data
     entry_type = parsed_response.get("type", "unknown")

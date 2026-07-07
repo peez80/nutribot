@@ -80,20 +80,21 @@ def test_process_message_success(mock_run, client):
     assert "User: Ein Apfel." in prompt_arg
 
 @patch("app.agy_client.subprocess.run")
-def test_process_message_with_image(mock_run, client):
+def test_process_message_with_multiple_images(mock_run, client):
     mock_run.return_value = MagicMock(
         stdout=json.dumps({"type": "meal", "data": {}, "reply": "ok"}),
         returncode=0
     )
     
-    result = client.process_message([], "Essen", "/tmp/image.jpg")
+    result = client.process_message([], "Essen", ["/tmp/image1.jpg", "/tmp/image2.jpg"])
     
     assert result["reply"] == "ok"
     
-    # Verify image path is included in prompt as per current implementation
+    # Verify image paths are included in prompt
     args, kwargs = mock_run.call_args
     prompt_arg = args[0][args[0].index("--prompt") + 1]
-    assert "/tmp/image.jpg" in prompt_arg
+    assert "/tmp/image1.jpg" in prompt_arg
+    assert "/tmp/image2.jpg" in prompt_arg
 
 @patch("app.agy_client.subprocess.run")
 def test_process_message_json_error(mock_run, client):

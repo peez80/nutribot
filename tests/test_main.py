@@ -35,11 +35,11 @@ def test_chat_endpoint_text_only(mock_save_entry, mock_agy_client):
     # Verify save_entry was called
     mock_save_entry.assert_called_once_with("meal", "Ich habe Pizza gegessen", {"food": "Pizza"})
     
-    # Verify agy_client was called correctly (image_path should be None)
+    # Verify agy_client was called correctly (image_paths should be [])
     mock_agy_client.process_message.assert_called_once()
     args, kwargs = mock_agy_client.process_message.call_args
     assert args[1] == "Ich habe Pizza gegessen"
-    assert args[2] is None  # image_path
+    assert args[2] == []  # image_paths
     
 @patch("app.main.agy_client")
 @patch("app.main.save_entry")
@@ -55,7 +55,7 @@ def test_chat_endpoint_with_image(mock_save_entry, mock_agy_client):
     mock_agy_client.process_message.return_value = mock_response
     
     # Create a dummy image file
-    files = {'image': ('test.jpg', b'dummy_image_data', 'image/jpeg')}
+    files = [('images', ('test.jpg', b'dummy_image_data', 'image/jpeg'))]
     data = {'message': 'Hier ist mein Essen'}
     
     response = client.post("/api/chat", data=data, files=files)
@@ -64,14 +64,14 @@ def test_chat_endpoint_with_image(mock_save_entry, mock_agy_client):
     json_resp = response.json()
     assert json_resp["reply"] == "Bild der Pizza wurde erfasst."
     
-    # Check that process_message was called with a path
+    # Check that process_message was called with a path list
     mock_agy_client.process_message.assert_called_once()
     args, kwargs = mock_agy_client.process_message.call_args
     assert args[1] == "Hier ist mein Essen"
-    assert args[2] is not None
-    assert args[2].endswith(".jpg")
+    assert len(args[2]) == 1
+    assert args[2][0].endswith(".jpg")
     
-    # Verify history contains image_url
+    # Verify history contains image_urls
     hist_resp = client.get("/api/history")
     assert hist_resp.status_code == 200
     hist = hist_resp.json()
@@ -79,14 +79,50 @@ def test_chat_endpoint_with_image(mock_save_entry, mock_agy_client):
     
     user_msg = hist[0]
     assert user_msg["is_user"] is True
-    assert "image_url" in user_msg
-    assert user_msg["image_url"].startswith("/uploads/")
-    assert user_msg["image_url"].endswith(".jpg")
+    assert "image_urls" in user_msg
+    assert len(user_msg["image_urls"]) == 1
+    assert user_msg["image_urls"][0].startswith("/uploads/")
+    assert user_msg["image_urls"][0].endswith(".jpg")
     
     # Test serving the image
-    img_resp = client.get(user_msg["image_url"])
+    img_resp = client.get(user_msg["image_urls"][0])
     assert img_resp.status_code == 200
     assert img_resp.content == b'dummy_image_data'
+
+@patch("app.main.agy_client")
+def test_chat_endpoint_multiple_images(mock_agy_client):
+    mock_response = {
+        "type": "meal",
+        "data": {"food": "Buffet"},
+        "reply": "Bilder erfasst."
+    }
+    mock_agy_client.process_message.return_value = mock_response
+    
+    files = [
+        ('images', ('test1.jpg', b'data1', 'image/jpeg')),
+        ('images', ('test2.jpg', b'data2', 'image/jpeg'))
+    ]
+    data = {'message': 'Hier ist mein Buffet'}
+    
+    response = client.post("/api/chat", data=data, files=files)
+    
+    assert response.status_code == 200
+    args, kwargs = mock_agy_client.process_message.call_args
+    assert len(args[2]) == 2
+    assert args[2][0].endswith(".jpg")
+    assert args[2][1].endswith(".jpg")
+
+def test_chat_endpoint_too_many_images():
+    files = []
+    for i in range(6):
+        files.append(('images', (f'test{i}.jpg', b'data', 'image/jpeg')))
+    
+    data = {'message': 'Zu viele Bilder'}
+    
+    response = client.post("/api/chat", data=data, files=files)
+    
+    assert response.status_code == 400
+    assert response.json()["error"] == "Maximal 5 Bilder erlaubt"
 
 @patch("app.main.agy_client")
 def test_auth_endpoints(mock_agy_client):
@@ -120,7 +156,7 @@ def test_chat_endpoint_image_only_no_text(mock_save_entry, mock_agy_client):
     mock_agy_client.process_message.return_value = mock_response
     
     # Create a dummy image file, empty message parameter
-    files = {'image': ('test.jpg', b'dummy_image_data', 'image/jpeg')}
+    files = [('images', ('test.jpg', b'dummy_image_data', 'image/jpeg'))]
     data = {'message': ''}
     
     response = client.post("/api/chat", data=data, files=files)
@@ -132,5 +168,5 @@ def test_chat_endpoint_image_only_no_text(mock_save_entry, mock_agy_client):
     mock_agy_client.process_message.assert_called_once()
     args, kwargs = mock_agy_client.process_message.call_args
     assert args[1] == ""
-    assert args[2] is not None
-    assert args[2].endswith(".jpg")
+    assert len(args[2]) == 1
+    assert args[2][0].endswith(".jpg")

@@ -117,7 +117,7 @@ class AgyClient:
                 self._login_process = None
             return False
 
-    def process_message(self, context_messages: list, new_message: str, image_path: str = None) -> dict:
+    def process_message(self, context_messages: list, new_message: str, image_paths: list = None) -> dict:
         """
         Calls the `agy` CLI with the provided context, new message, and optional image.
         Returns a dictionary representing the structured data extracted by the AI,
@@ -140,8 +140,8 @@ class AgyClient:
         else:
             prompt += f"\nUser: [Bild gesendet]\n"
         
-        if image_path:
-            prompt += f"\nBitte berücksichtige für deine Analyse auch dieses Bild: {image_path}\n"
+        if image_paths:
+            prompt += f"\nBitte berücksichtige für deine Analyse auch diese Bilder: {', '.join(image_paths)}\n"
             
         # We need to instruct agy to output JSON so we can parse it
         prompt += "\nPlease analyze this and output valid JSON containing 'type' (meal/symptom), 'data' (extracted info), and 'reply' (a friendly message to the user)."
