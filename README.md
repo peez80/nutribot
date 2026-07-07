@@ -4,7 +4,7 @@ A modern, web-based AI nutrition diary that allows users to log their meals and 
 
 ## Features
 - **Conversational Interface**: Log food and symptoms just by chatting with the AI.
-- **Image Support**: Upload pictures of your meals for automatic recognition and logging.
+- **Advanced Image Support**: Upload pictures of your meals (with or without text captions) for automatic recognition and logging. On mobile devices, you can use your camera directly to snap and upload photos.
 - **Smart Parsing**: Powered by Google's Gemini models via the `antigravity-cli`, extracting structured meal and symptom data automatically.
 - **Responsive Web App**: Built with vanilla HTML/JS/CSS for a fast, responsive user experience.
 - **FastAPI Backend**: A lightweight and fast Python backend.
@@ -39,6 +39,13 @@ Data such as logged meals and symptoms are stored in the local `_nutrition_data_
 - `app/storage.py`: Handles saving the structured parsed data locally.
 - `app/static/`: Contains the frontend assets (`index.html`, `app.js`, `index.css`).
 - `docker-compose.yml`: Defines the services and volume mappings for the Docker environment.
+
+## CI/CD Pipeline
+
+The project uses GitHub Actions for continuous integration and deployment:
+- **Automated Testing & Builds**: On every push, the pipeline runs automated tests and builds a new Docker image.
+- **Docker Hub**: Successful builds are automatically published to Docker Hub under [`peez/nutribot`](https://hub.docker.com/r/peez/nutribot).
+- **Manual Triggers**: Workflows can also be triggered manually (`workflow_dispatch`) from the GitHub Actions interface.
 
 ## Testing
 
