@@ -130,21 +130,32 @@ class AgyClient:
             "reply": "Das habe ich notiert!"
         }
         """
-        # Format the prompt
-        prompt = "Context:\n"
-        for msg in context_messages:
-            role = "User" if msg.get("is_user") else "AI"
-            prompt += f"{role}: {msg.get('text')}\n"
-        if new_message:
-            prompt += f"\nUser: {new_message}\n"
-        else:
-            prompt += f"\nUser: [Bild gesendet]\n"
+        context_truncated = False
+        MAX_CMD_LENGTH = 1500000 # 1.5M chars safe limit for Linux ARG_MAX
         
-        if image_paths:
-            prompt += f"\nBitte berücksichtige für deine Analyse auch diese Bilder: {', '.join(image_paths)}\n"
+        # We loop to truncate oldest messages if the built prompt is too large
+        while True:
+            # Format the prompt
+            prompt = "Context:\n"
+            for msg in context_messages:
+                role = "User" if msg.get("is_user") else "AI"
+                prompt += f"{role}: {msg.get('text')}\n"
+            if new_message:
+                prompt += f"\nUser: {new_message}\n"
+            else:
+                prompt += f"\nUser: [Bild gesendet]\n"
             
-        # We need to instruct agy to output JSON so we can parse it
-        prompt += "\nPlease analyze this and output valid JSON containing 'type' (meal/symptom), 'data' (extracted info), and 'reply' (a friendly message to the user)."
+            if image_paths:
+                prompt += f"\nBitte berücksichtige für deine Analyse auch diese Bilder: {', '.join(image_paths)}\n"
+                
+            # We need to instruct agy to output JSON so we can parse it
+            prompt += "\nPlease analyze this and output valid JSON containing 'type' (meal/symptom), 'data' (extracted info), and 'reply' (a friendly message to the user)."
+
+            if len(prompt) > MAX_CMD_LENGTH and len(context_messages) > 0:
+                context_messages.pop(0)
+                context_truncated = True
+            else:
+                break
 
         cmd = [self.executable_path, "--prompt", prompt]
 
@@ -165,13 +176,15 @@ class AgyClient:
                     output = output[::-1].replace("```", "", 1)[::-1]
                 
                 parsed_data = json.loads(output.strip())
+                parsed_data["context_truncated"] = context_truncated
                 return parsed_data
             except json.JSONDecodeError:
                 logger.error(f"Failed to parse JSON from agy: {output}")
                 return {
                     "type": "unknown",
                     "data": {"raw_output": output},
-                    "reply": "Ich konnte die Daten nicht verarbeiten, aber ich habe es mir gemerkt."
+                    "reply": "Ich konnte die Daten nicht verarbeiten, aber ich habe es mir gemerkt.",
+                    "context_truncated": context_truncated
                 }
                 
         except FileNotFoundError:
@@ -181,14 +194,16 @@ class AgyClient:
             return {
                 "type": "symptom" if is_symptom else "meal",
                 "data": {"mocked": True, "note": "This is mock data because agy was not found."},
-                "reply": "Das habe ich als Symptom erfasst." if is_symptom else "Das Essen wurde notiert!"
+                "reply": "Das habe ich als Symptom erfasst." if is_symptom else "Das Essen wurde notiert!",
+                "context_truncated": context_truncated
             }
         except subprocess.CalledProcessError as e:
             logger.error(f"agy command failed with code {e.returncode}: {e.stderr}")
             return {
                 "type": "error",
                 "data": {},
-                "reply": "Entschuldigung, es gab einen internen Fehler bei der Verarbeitung."
+                "reply": "Entschuldigung, es gab einen internen Fehler bei der Verarbeitung.",
+                "context_truncated": context_truncated
             }
 
 agy_client = AgyClient()

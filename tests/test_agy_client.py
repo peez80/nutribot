@@ -55,7 +55,8 @@ def test_process_message_success(mock_run, client):
     expected_response = {
         "type": "meal",
         "data": {"food": "Apfel"},
-        "reply": "Apfel notiert!"
+        "reply": "Apfel notiert!",
+        "context_truncated": False
     }
     
     # Sometimes it wraps in markdown

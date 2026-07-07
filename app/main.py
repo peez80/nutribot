@@ -3,7 +3,7 @@ import tempfile
 import uuid
 from typing import List, Optional
 
-from fastapi import FastAPI, UploadFile, File, Form, Request
+from fastapi import FastAPI, UploadFile, File, Form, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,7 +11,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from .agy_client import agy_client
-from .storage import init_storage, save_entry, DATA_DIR
+from .storage import (
+    init_storage, save_entry, DATA_DIR,
+    create_session, get_sessions, get_session_history,
+    save_session_message, update_session_title, delete_session
+)
 
 app = FastAPI(title="AI Nutrition Diary App")
 
@@ -33,12 +37,8 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Mount uploads directory
 uploads_dir = os.path.join(DATA_DIR, "uploads")
+os.makedirs(uploads_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
-
-# In-memory history for simplicity in this demo. 
-# A real app might store this in a database or session.
-chat_history = []
-MAX_CONTEXT_MESSAGES = 5
 
 class ChatMessage(BaseModel):
     text: str
@@ -50,17 +50,42 @@ async def serve_index():
     with open(os.path.join(static_dir, "index.html"), "r", encoding="utf-8") as f:
         return f.read()
 
-@app.get("/api/history", response_model=List[ChatMessage])
-async def get_history():
-    return chat_history
+@app.post("/api/sessions")
+async def create_session_endpoint():
+    session_id = create_session("Neuer Chat")
+    return {"id": session_id, "title": "Neuer Chat"}
 
-@app.post("/api/chat")
+@app.get("/api/sessions")
+async def get_sessions_endpoint():
+    return get_sessions()
+
+@app.get("/api/sessions/{session_id}/history", response_model=List[ChatMessage])
+async def get_history_endpoint(session_id: str):
+    history = get_session_history(session_id)
+    return history
+
+@app.delete("/api/sessions/{session_id}")
+async def delete_session_endpoint(session_id: str):
+    sessions = get_sessions()
+    session_metadata = next((s for s in sessions if s["id"] == session_id), None)
+    if not session_metadata:
+        raise HTTPException(status_code=404, detail="Session not found")
+        
+    delete_session(session_id)
+    return {"success": True}
+
+@app.post("/api/sessions/{session_id}/chat")
 async def chat_endpoint(
+    session_id: str,
     message: str = Form(""),
     images: List[UploadFile] = File([])
 ):
-    global chat_history
-    
+    # Verify session exists
+    sessions = get_sessions()
+    session_metadata = next((s for s in sessions if s["id"] == session_id), None)
+    if not session_metadata:
+        raise HTTPException(status_code=404, detail="Session not found")
+
     valid_images = [img for img in images if img.filename]
     if len(valid_images) > 5:
         return JSONResponse(status_code=400, content={"error": "Maximal 5 Bilder erlaubt"})
@@ -88,32 +113,39 @@ async def chat_endpoint(
         else:
             display_msg += f" [{len(valid_images)} Bild(er) angehängt]"
             
+    # Auto-rename if this is the first message and title is default
+    history = get_session_history(session_id)
+    if not history and session_metadata.get("title") == "Neuer Chat" and message:
+        # Use first 30 chars
+        new_title = (message[:27] + "...") if len(message) > 30 else message
+        update_session_title(session_id, new_title)
+
     # Save the user's message to history
-    chat_history.append({
+    user_msg_data = {
         "text": display_msg, 
         "is_user": True,
         "image_urls": image_urls
-    })
+    }
+    save_session_message(session_id, user_msg_data)
 
-    # Get the context (last N messages, excluding the current one)
-    context = chat_history[-(MAX_CONTEXT_MESSAGES+1):-1]
-    
-    # Process via agy
-    parsed_response = agy_client.process_message(context, message, image_paths)
+    # Process via agy with FULL context
+    parsed_response = agy_client.process_message(history, message, image_paths)
         
     # Extract data
     entry_type = parsed_response.get("type", "unknown")
     extracted_data = parsed_response.get("data", {})
     ai_reply = parsed_response.get("reply", "Entschuldigung, ich habe das nicht verstanden.")
+    context_truncated = parsed_response.get("context_truncated", False)
     
     # Save the structured data
     if entry_type in ["meal", "symptom"]:
         save_entry(entry_type, message, extracted_data)
         
     # Append AI reply to history
-    chat_history.append({"text": ai_reply, "is_user": False})
+    ai_msg_data = {"text": ai_reply, "is_user": False}
+    save_session_message(session_id, ai_msg_data)
     
-    return JSONResponse(content={"reply": ai_reply, "parsed": parsed_response})
+    return JSONResponse(content={"reply": ai_reply, "parsed": parsed_response, "context_truncated": context_truncated})
 
 class AuthCodeRequest(BaseModel):
     code: str

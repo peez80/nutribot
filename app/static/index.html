@@ -8,52 +8,72 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/styles.css?v=2">
+    <link rel="stylesheet" href="/static/styles.css?v=3">
     <!-- Phosphor Icons for premium aesthetic -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 </head>
 <body>
-    <div class="app-container">
-        <header class="app-header">
-            <div class="header-title">
-                <i class="ph-fill ph-leaf"></i>
-                <h1>NutriBot</h1>
-            </div>
-            <p class="header-subtitle">Dein intelligentes Ernährungstagebuch</p>
-        </header>
-
-        <main class="chat-container" id="chat-container">
-            <!-- Chat messages will be injected here -->
-            <div class="message ai-message">
-                <div class="message-bubble">
-                    Hallo! Was hast du heute gegessen oder wie fühlst du dich?
-                </div>
-            </div>
-        </main>
-
-        <footer class="input-area">
-            <div class="image-preview-container" id="image-preview-container" style="display: none;">
-                <!-- Previews will be injected here via JS -->
-            </div>
-            
-            <form id="chat-form" class="input-form">
-                <label for="camera-upload" class="icon-button" title="Foto aufnehmen">
-                    <i class="ph-bold ph-camera"></i>
-                </label>
-                <input type="file" id="camera-upload" accept="image/*" capture="environment" multiple style="display: none;" />
-                
-                <label for="image-upload" class="icon-button" title="Bild aus Galerie wählen">
-                    <i class="ph-bold ph-image"></i>
-                </label>
-                <input type="file" id="image-upload" accept="image/*" multiple style="display: none;" />
-                
-                <input type="text" id="message-input" placeholder="Nachricht eingeben..." autocomplete="off" />
-                
-                <button type="submit" class="icon-button primary" id="send-btn" title="Senden">
-                    <i class="ph-bold ph-paper-plane-right"></i>
+    <div class="app-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2>Chats</h2>
+                <button id="new-chat-btn" class="icon-button primary" title="Neuer Chat">
+                    <i class="ph-bold ph-plus"></i>
                 </button>
-            </form>
-        </footer>
+                <button id="close-sidebar-btn" class="icon-button mobile-only" title="Schließen">
+                    <i class="ph-bold ph-x"></i>
+                </button>
+            </div>
+            <div class="session-list" id="session-list">
+                <!-- Session items will be injected here -->
+            </div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <div class="app-container">
+            <header class="app-header">
+                <button id="menu-btn" class="icon-button mobile-only" title="Menü">
+                    <i class="ph-bold ph-list"></i>
+                </button>
+                <div class="header-title">
+                    <i class="ph-fill ph-leaf"></i>
+                    <h1>NutriBot</h1>
+                </div>
+                <div style="width: 36px;" class="mobile-only"></div> <!-- spacer -->
+            </header>
+
+            <main class="chat-container" id="chat-container">
+                <!-- Chat messages will be injected here -->
+            </main>
+
+            <footer class="input-area">
+                <div class="context-warning" id="context-warning" style="display: none;">
+                    <i class="ph-fill ph-warning-circle"></i> Hinweis: Ältere Nachrichten wurden ausgeblendet, um Platz zu sparen.
+                </div>
+                <div class="image-preview-container" id="image-preview-container" style="display: none;">
+                    <!-- Previews will be injected here via JS -->
+                </div>
+                
+                <form id="chat-form" class="input-form">
+                    <label for="camera-upload" class="icon-button" title="Foto aufnehmen">
+                        <i class="ph-bold ph-camera"></i>
+                    </label>
+                    <input type="file" id="camera-upload" accept="image/*" capture="environment" multiple style="display: none;" />
+                    
+                    <label for="image-upload" class="icon-button" title="Bild aus Galerie wählen">
+                        <i class="ph-bold ph-image"></i>
+                    </label>
+                    <input type="file" id="image-upload" accept="image/*" multiple style="display: none;" />
+                    
+                    <input type="text" id="message-input" placeholder="Nachricht eingeben..." autocomplete="off" />
+                    
+                    <button type="submit" class="icon-button primary" id="send-btn" title="Senden">
+                        <i class="ph-bold ph-paper-plane-right"></i>
+                    </button>
+                </form>
+            </footer>
+        </div>
     </div>
 
     <!-- Login Modal -->
@@ -83,6 +103,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=2"></script>
+    <script src="/static/app.js?v=3"></script>
 </body>
 </html>

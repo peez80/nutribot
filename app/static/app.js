@@ -5,8 +5,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const imageUpload = document.getElementById("image-upload");
     const cameraUpload = document.getElementById("camera-upload");
     const imagePreviewContainer = document.getElementById("image-preview-container");
-    const imagePreview = document.getElementById("image-preview");
     const removeImageBtn = document.getElementById("remove-image-btn");
+    const contextWarning = document.getElementById("context-warning");
+
+    // Sidebar elements
+    const sidebar = document.getElementById("sidebar");
+    const menuBtn = document.getElementById("menu-btn");
+    const closeSidebarBtn = document.getElementById("close-sidebar-btn");
+    const sessionList = document.getElementById("session-list");
+    const newChatBtn = document.getElementById("new-chat-btn");
 
     // Auth Modal elements
     const authModal = document.getElementById("auth-modal");
@@ -16,6 +23,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const verifyBtn = document.getElementById("verify-btn");
 
     let selectedImageFiles = [];
+    let currentSessionId = localStorage.getItem("currentSessionId");
+
+    // Toggle Sidebar Mobile
+    const toggleSidebar = () => {
+        sidebar.classList.toggle("open");
+    };
+    menuBtn.addEventListener("click", toggleSidebar);
+    closeSidebarBtn.addEventListener("click", toggleSidebar);
 
     // Scroll to bottom
     const scrollToBottom = () => {
@@ -52,6 +67,15 @@ document.addEventListener("DOMContentLoaded", () => {
         msgDiv.appendChild(bubble);
         chatContainer.appendChild(msgDiv);
         scrollToBottom();
+    };
+
+    // Show initial greeting
+    const showInitialGreeting = () => {
+        chatContainer.innerHTML = '';
+        const msgDiv = document.createElement("div");
+        msgDiv.className = "message ai-message";
+        msgDiv.innerHTML = `<div class="message-bubble">Hallo! Was hast du heute gegessen oder wie fühlst du dich?</div>`;
+        chatContainer.appendChild(msgDiv);
     };
 
     // Show typing indicator
@@ -133,19 +157,123 @@ document.addEventListener("DOMContentLoaded", () => {
     imageUpload.addEventListener("change", (e) => handleImageSelection(e, cameraUpload));
     cameraUpload.addEventListener("change", (e) => handleImageSelection(e, imageUpload));
 
-    // Load History
-    const loadHistory = async () => {
+    // --- Session Management ---
+
+    const selectSession = async (sessionId) => {
+        currentSessionId = sessionId;
+        localStorage.setItem("currentSessionId", sessionId);
+        contextWarning.style.display = "none";
+        renderSessionList(window.lastSessions || []);
+        
+        // Hide sidebar on mobile after selection
+        if (window.innerWidth <= 768) {
+            sidebar.classList.remove("open");
+        }
+
         try {
-            const response = await fetch("/api/history");
+            const response = await fetch(`/api/sessions/${sessionId}/history`);
             const history = await response.json();
+            
+            chatContainer.innerHTML = '';
             if (history && history.length > 0) {
-                chatContainer.innerHTML = ''; // clear initial greeting if there's history
                 history.forEach(msg => {
                     appendMessage(msg.text, msg.is_user, msg.image_urls || []);
                 });
+            } else {
+                showInitialGreeting();
             }
         } catch (error) {
             console.error("Failed to load history", error);
+        }
+    };
+
+    const createNewSession = async () => {
+        try {
+            const res = await fetch("/api/sessions", { method: "POST" });
+            const data = await res.json();
+            await loadSessions();
+            selectSession(data.id);
+        } catch (err) {
+            console.error("Error creating session", err);
+        }
+    };
+
+    newChatBtn.addEventListener("click", createNewSession);
+
+    const renderSessionList = (sessions) => {
+        window.lastSessions = sessions;
+        sessionList.innerHTML = '';
+        sessions.forEach(session => {
+            const div = document.createElement("div");
+            div.className = `session-item ${session.id === currentSessionId ? "active" : ""}`;
+            
+            // Format date slightly
+            let dateStr = session.created_at;
+            if (dateStr) {
+                const d = new Date(dateStr);
+                dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            }
+
+            div.innerHTML = `
+                <div class="session-info">
+                    <div class="session-date">${dateStr || "Neu"}</div>
+                    <div class="session-title">${session.title}</div>
+                </div>
+                <button class="icon-button danger delete-btn" title="Chat löschen">
+                    <i class="ph-bold ph-trash"></i>
+                </button>
+            `;
+            
+            // Handle session selection
+            div.addEventListener("click", () => selectSession(session.id));
+            
+            // Handle deletion
+            const deleteBtn = div.querySelector('.delete-btn');
+            deleteBtn.addEventListener('click', async (e) => {
+                e.stopPropagation(); // prevent selecting the session
+                if (confirm('Möchtest du diesen Chat wirklich löschen?')) {
+                    try {
+                        const res = await fetch(`/api/sessions/${session.id}`, { method: 'DELETE' });
+                        if (res.ok) {
+                            if (currentSessionId === session.id) {
+                                currentSessionId = null;
+                                localStorage.removeItem("currentSessionId");
+                                chatContainer.innerHTML = '';
+                            }
+                            await loadSessions();
+                        } else {
+                            alert("Fehler beim Löschen des Chats.");
+                        }
+                    } catch (err) {
+                        console.error("Error deleting session", err);
+                    }
+                }
+            });
+
+            sessionList.appendChild(div);
+        });
+    };
+
+    const loadSessions = async () => {
+        try {
+            const res = await fetch("/api/sessions");
+            const sessions = await res.json();
+            
+            if (!sessions || sessions.length === 0) {
+                await createNewSession();
+                return;
+            }
+
+            renderSessionList(sessions);
+
+            // If currentSessionId not in list or not set, select the first one
+            if (!currentSessionId || !sessions.find(s => s.id === currentSessionId)) {
+                selectSession(sessions[0].id);
+            } else {
+                selectSession(currentSessionId);
+            }
+        } catch (err) {
+            console.error("Failed to load sessions", err);
         }
     };
 
@@ -153,6 +281,11 @@ document.addEventListener("DOMContentLoaded", () => {
     chatForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         
+        if (!currentSessionId) {
+            alert("Fehler: Keine aktive Sitzung.");
+            return;
+        }
+
         const text = messageInput.value.trim();
         if (!text && selectedImageFiles.length === 0) return;
 
@@ -163,6 +296,12 @@ document.addEventListener("DOMContentLoaded", () => {
             displayMsg += displayMsg ? ` [${selectedImageFiles.length} Bild(er) angehängt]` : `[${selectedImageFiles.length} Bild(er) gesendet]`;
             localImageUrls = selectedImageFiles.map(f => URL.createObjectURL(f));
         }
+        
+        // Remove initial greeting if it's the first message
+        if (chatContainer.children.length === 1 && chatContainer.firstElementChild.innerText.includes("Hallo! Was hast du heute gegessen")) {
+            chatContainer.innerHTML = '';
+        }
+
         appendMessage(displayMsg, true, localImageUrls);
 
         // Prepare form data
@@ -178,9 +317,10 @@ document.addEventListener("DOMContentLoaded", () => {
         updatePreviewUI();
         
         showTypingIndicator();
+        contextWarning.style.display = "none";
 
         try {
-            const response = await fetch("/api/chat", {
+            const response = await fetch(`/api/sessions/${currentSessionId}/chat`, {
                 method: "POST",
                 body: formData
             });
@@ -188,6 +328,15 @@ document.addEventListener("DOMContentLoaded", () => {
             
             removeTypingIndicator();
             appendMessage(data.reply, false);
+            
+            if (data.context_truncated) {
+                contextWarning.style.display = "flex";
+            }
+            
+            // Reload sessions in case the title changed
+            const sessionsRes = await fetch("/api/sessions");
+            const sessionsData = await sessionsRes.json();
+            renderSessionList(sessionsData);
             
         } catch (error) {
             removeTypingIndicator();
@@ -204,7 +353,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!data.authenticated) {
                 startAuthFlow();
             } else {
-                loadHistory();
+                loadSessions();
             }
         } catch (err) {
             console.error("Error checking auth status", err);
@@ -245,7 +394,7 @@ document.addEventListener("DOMContentLoaded", () => {
             
             if (data.success) {
                 authModal.style.display = "none";
-                loadHistory();
+                loadSessions();
             } else {
                 alert("Verifizierung fehlgeschlagen. Bitte versuche es erneut.");
                 verifyBtn.disabled = false;
