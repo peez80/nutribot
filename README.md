@@ -34,7 +34,7 @@ The application is fully containerized and can be started with Docker Compose:
 Data such as logged meals and symptoms are stored in the local `_nutrition_data_volume` directory, which is mapped into the container. Die Daten werden für jeden Benutzer in eigenen Unterordnern isoliert gespeichert (z. B. `data/alice/sessions`).
 
 ### User Management
-The application supports multi-user authentication without self-registration. Valid users and their passwords must be configured manually in the `users.json` file located in the root of the project.
+The application supports multi-user authentication without self-registration. Valid users and their passwords must be configured manually in the `users.json` file located in the persistent data volume, specifically under `data/config/users.json` (or `_nutrition_data_volume/config/users.json` if running via docker-compose).
 
 Example `users.json`:
 ```json

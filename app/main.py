@@ -39,7 +39,7 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 # --- Authentication & Sessions ---
 
 def get_valid_users():
-    users_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "users.json")
+    users_file = os.path.join(DATA_DIR, "config", "users.json")
     if os.path.exists(users_file):
         try:
             with open(users_file, "r", encoding="utf-8") as f:

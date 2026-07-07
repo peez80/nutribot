@@ -9,6 +9,7 @@ DATA_DIR = os.getenv("DATA_DIR", os.path.join(os.path.dirname(os.path.dirname(__
 def init_storage():
     """Ensure the base data directory exists."""
     os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(os.path.join(DATA_DIR, "config"), exist_ok=True)
 
 def init_user_storage(username: str):
     """Ensure the subdirectories for a specific user exist."""
