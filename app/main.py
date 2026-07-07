@@ -1,11 +1,11 @@
 import os
-import tempfile
+import json
 import uuid
 from typing import List, Optional
 
-from fastapi import FastAPI, UploadFile, File, Form, Request, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, Request, Response, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from pydantic import BaseModel
@@ -15,14 +15,14 @@ from .storage import (
     init_storage, save_entry, DATA_DIR,
     create_session, get_sessions, get_session_history,
     save_session_message, update_session_title, delete_session,
-    get_session_prompt, update_session_prompt
+    get_session_prompt, update_session_prompt, init_user_storage
 )
 
 app = FastAPI(title="AI Nutrition Diary App")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:8000", "http://127.0.0.1:8000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -36,10 +36,47 @@ static_dir = os.path.join(os.path.dirname(__file__), "static")
 os.makedirs(static_dir, exist_ok=True)
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-# Mount uploads directory
-uploads_dir = os.path.join(DATA_DIR, "uploads")
-os.makedirs(uploads_dir, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
+# --- Authentication & Sessions ---
+
+def get_valid_users():
+    users_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "users.json")
+    if os.path.exists(users_file):
+        try:
+            with open(users_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+AUTH_SESSIONS_FILE = os.path.join(DATA_DIR, "auth_sessions.json")
+ACTIVE_SESSIONS = {}
+
+def load_auth_sessions():
+    global ACTIVE_SESSIONS
+    if os.path.exists(AUTH_SESSIONS_FILE):
+        try:
+            with open(AUTH_SESSIONS_FILE, "r", encoding="utf-8") as f:
+                ACTIVE_SESSIONS = json.load(f)
+        except Exception:
+            ACTIVE_SESSIONS = {}
+
+def save_auth_sessions():
+    try:
+        with open(AUTH_SESSIONS_FILE, "w", encoding="utf-8") as f:
+            json.dump(ACTIVE_SESSIONS, f)
+    except Exception:
+        pass
+
+# Load sessions on startup
+load_auth_sessions()
+
+def get_current_user(request: Request) -> str:
+    session_token = request.cookies.get("session_token")
+    if not session_token or session_token not in ACTIVE_SESSIONS:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return ACTIVE_SESSIONS[session_token]
+
+# --- Endpoints ---
 
 class ChatMessage(BaseModel):
     text: str
@@ -51,51 +88,90 @@ async def serve_index():
     with open(os.path.join(static_dir, "index.html"), "r", encoding="utf-8") as f:
         return f.read()
 
+# Auth Endpoints
+@app.post("/api/auth/login")
+async def login(response: Response, username: str = Form(...), password: str = Form(...)):
+    users = get_valid_users()
+    if username in users and users[username] == password:
+        session_token = uuid.uuid4().hex
+        ACTIVE_SESSIONS[session_token] = username
+        save_auth_sessions()
+        
+        response.set_cookie(
+            key="session_token", 
+            value=session_token, 
+            httponly=True, 
+            samesite="lax",
+            max_age=30 * 24 * 60 * 60 # 30 days
+        )
+        # Ensure user directories exist
+        init_user_storage(username)
+        return {"success": True}
+    raise HTTPException(status_code=401, detail="Invalid credentials")
+
+@app.post("/api/auth/logout")
+async def logout(request: Request, response: Response):
+    session_token = request.cookies.get("session_token")
+    if session_token in ACTIVE_SESSIONS:
+        del ACTIVE_SESSIONS[session_token]
+        save_auth_sessions()
+    response.delete_cookie("session_token")
+    return {"success": True}
+
+@app.get("/api/auth/status")
+async def auth_status(request: Request):
+    session_token = request.cookies.get("session_token")
+    if session_token and session_token in ACTIVE_SESSIONS:
+        return {"authenticated": True, "username": ACTIVE_SESSIONS[session_token]}
+    return {"authenticated": False}
+
+# Session Endpoints
 @app.post("/api/sessions")
-async def create_session_endpoint():
-    session_id = create_session("Neuer Chat")
+async def create_session_endpoint(username: str = Depends(get_current_user)):
+    session_id = create_session(username, "Neuer Chat")
     return {"id": session_id, "title": "Neuer Chat"}
 
 @app.get("/api/sessions")
-async def get_sessions_endpoint():
-    return get_sessions()
+async def get_sessions_endpoint(username: str = Depends(get_current_user)):
+    return get_sessions(username)
 
 @app.get("/api/sessions/{session_id}/history", response_model=List[ChatMessage])
-async def get_history_endpoint(session_id: str):
-    history = get_session_history(session_id)
+async def get_history_endpoint(session_id: str, username: str = Depends(get_current_user)):
+    history = get_session_history(username, session_id)
     return history
 
 @app.delete("/api/sessions/{session_id}")
-async def delete_session_endpoint(session_id: str):
-    sessions = get_sessions()
+async def delete_session_endpoint(session_id: str, username: str = Depends(get_current_user)):
+    sessions = get_sessions(username)
     session_metadata = next((s for s in sessions if s["id"] == session_id), None)
     if not session_metadata:
         raise HTTPException(status_code=404, detail="Session not found")
         
-    delete_session(session_id)
+    delete_session(username, session_id)
     return {"success": True}
 
 class SystemPromptRequest(BaseModel):
     prompt: str
 
 @app.get("/api/sessions/{session_id}/prompt")
-async def get_prompt_endpoint(session_id: str):
-    prompt = get_session_prompt(session_id)
+async def get_prompt_endpoint(session_id: str, username: str = Depends(get_current_user)):
+    prompt = get_session_prompt(username, session_id)
     return {"prompt": prompt}
 
 @app.put("/api/sessions/{session_id}/prompt")
-async def update_prompt_endpoint(session_id: str, req: SystemPromptRequest):
-    update_session_prompt(session_id, req.prompt)
+async def update_prompt_endpoint(session_id: str, req: SystemPromptRequest, username: str = Depends(get_current_user)):
+    update_session_prompt(username, session_id, req.prompt)
     return {"success": True}
 
 @app.post("/api/sessions/{session_id}/chat")
 async def chat_endpoint(
     session_id: str,
     message: str = Form(""),
-    images: List[UploadFile] = File([])
+    images: List[UploadFile] = File([]),
+    username: str = Depends(get_current_user)
 ):
     # Verify session exists
-    sessions = get_sessions()
+    sessions = get_sessions(username)
     session_metadata = next((s for s in sessions if s["id"] == session_id), None)
     if not session_metadata:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -109,11 +185,15 @@ async def chat_endpoint(
     image_urls = []
     
     if valid_images:
+        # Ensure uploads dir exists for user
+        user_uploads_dir = os.path.join(DATA_DIR, username, "uploads")
+        os.makedirs(user_uploads_dir, exist_ok=True)
+        
         for img in valid_images:
             # Save uploaded image permanently
             ext = os.path.splitext(img.filename)[1]
             filename = f"{uuid.uuid4().hex}{ext}"
-            img_path = os.path.join(DATA_DIR, "uploads", filename)
+            img_path = os.path.join(user_uploads_dir, filename)
             
             contents = await img.read()
             with open(img_path, "wb") as f:
@@ -128,11 +208,11 @@ async def chat_endpoint(
             display_msg += f" [{len(valid_images)} Bild(er) angehängt]"
             
     # Auto-rename if this is the first message and title is default
-    history = get_session_history(session_id)
+    history = get_session_history(username, session_id)
     if not history and session_metadata.get("title") == "Neuer Chat" and message:
         # Use first 30 chars
         new_title = (message[:27] + "...") if len(message) > 30 else message
-        update_session_title(session_id, new_title)
+        update_session_title(username, session_id, new_title)
 
     # Save the user's message to history
     user_msg_data = {
@@ -140,10 +220,10 @@ async def chat_endpoint(
         "is_user": True,
         "image_urls": image_urls
     }
-    save_session_message(session_id, user_msg_data)
+    save_session_message(username, session_id, user_msg_data)
 
     # Process via agy with FULL context
-    session_prompt = get_session_prompt(session_id)
+    session_prompt = get_session_prompt(username, session_id)
     parsed_response = agy_client.process_message(history, message, image_paths, session_prompt)
         
     # Extract data
@@ -154,28 +234,19 @@ async def chat_endpoint(
     
     # Save the structured data
     if entry_type in ["meal", "symptom"]:
-        save_entry(entry_type, message, extracted_data)
+        save_entry(username, entry_type, message, extracted_data)
         
     # Append AI reply to history
     ai_msg_data = {"text": ai_reply, "is_user": False}
-    save_session_message(session_id, ai_msg_data)
+    save_session_message(username, session_id, ai_msg_data)
     
     return JSONResponse(content={"reply": ai_reply, "parsed": parsed_response, "context_truncated": context_truncated})
 
-class AuthCodeRequest(BaseModel):
-    code: str
-
-@app.get("/api/auth/status")
-async def auth_status():
-    is_auth = agy_client.is_authenticated()
-    return {"authenticated": is_auth}
-
-@app.post("/api/auth/start")
-async def auth_start():
-    url = agy_client.get_login_url()
-    return {"url": url}
-
-@app.post("/api/auth/verify")
-async def auth_verify(req: AuthCodeRequest):
-    success = agy_client.submit_auth_code(req.code)
-    return {"success": success}
+# Secure Uploads Endpoint
+@app.get("/uploads/{filename}")
+async def get_upload(filename: str, username: str = Depends(get_current_user)):
+    safe_filename = os.path.basename(filename)
+    file_path = os.path.join(DATA_DIR, username, "uploads", safe_filename)
+    if os.path.exists(file_path):
+        return FileResponse(file_path)
+    raise HTTPException(status_code=404, detail="File not found")

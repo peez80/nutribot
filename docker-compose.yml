@@ -6,6 +6,7 @@ services:
     volumes:
       - ./app:/app/app
       - ./tests:/app/tests
+      - ./users.json:/app/users.json
       - ./_nutrition_data_volume:/app/data
       - ~/.gemini/antigravity-cli:/root/.gemini/antigravity-cli
     environment:

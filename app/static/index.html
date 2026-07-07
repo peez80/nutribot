@@ -43,6 +43,9 @@
                 <button id="system-prompt-btn" class="icon-button" title="System-Prompt" disabled style="margin-left: auto;">
                     <i class="ph-bold ph-faders"></i>
                 </button>
+                <button id="logout-btn" class="icon-button" title="Abmelden" style="margin-left: 0.5rem;">
+                    <i class="ph-bold ph-sign-out"></i>
+                </button>
             </header>
 
             <main class="chat-container" id="chat-container">
@@ -79,29 +82,16 @@
     </div>
 
     <!-- Login Modal -->
-    <div id="auth-modal" class="modal-overlay" style="display: none;">
+    <div id="auth-modal" class="modal-overlay" style="display: flex;">
         <div class="modal-content">
-            <h2><i class="ph-bold ph-lock-key"></i> Authentifizierung erforderlich</h2>
-            <p>Bitte logge dich mit deinem Antigravity-Konto ein, um das Tagebuch zu nutzen.</p>
+            <h2><i class="ph-bold ph-lock-key"></i> Login</h2>
+            <p>Bitte melde dich an, um dein Tagebuch zu nutzen.</p>
             
-            <div class="auth-steps">
-                <div class="step">
-                    <span class="step-number">1</span>
-                    <p>Klicke auf diesen Link, um dich im Browser anzumelden:</p>
-                </div>
-                <div class="url-container">
-                    <a id="auth-url-link" href="#" target="_blank" rel="noopener noreferrer">Lade Login-URL...</a>
-                </div>
-                
-                <div class="step">
-                    <span class="step-number">2</span>
-                    <p>Kopiere den Autorisierungscode und füge ihn hier ein:</p>
-                </div>
-                <form id="auth-form" class="auth-form">
-                    <input type="text" id="auth-code-input" placeholder="Code einfügen..." required autocomplete="off">
-                    <button type="submit" class="primary-btn" id="verify-btn">Verifizieren</button>
-                </form>
-            </div>
+            <form id="auth-form" class="auth-form" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 1rem;">
+                <input type="text" id="login-username" placeholder="Benutzername" required autocomplete="username" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px;">
+                <input type="password" id="login-password" placeholder="Passwort" required autocomplete="current-password" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px;">
+                <button type="submit" class="primary-btn" id="verify-btn">Anmelden</button>
+            </form>
         </div>
     </div>
 

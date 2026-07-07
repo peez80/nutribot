@@ -17,10 +17,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Auth Modal elements
     const authModal = document.getElementById("auth-modal");
-    const authUrlLink = document.getElementById("auth-url-link");
     const authForm = document.getElementById("auth-form");
-    const authCodeInput = document.getElementById("auth-code-input");
+    const loginUsernameInput = document.getElementById("login-username");
+    const loginPasswordInput = document.getElementById("login-password");
     const verifyBtn = document.getElementById("verify-btn");
+    const logoutBtn = document.getElementById("logout-btn");
 
     // System Prompt elements
     const systemPromptBtn = document.getElementById("system-prompt-btn");
@@ -402,14 +403,33 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    // --- Global 401 Handler ---
+    const originalFetch = window.fetch;
+    window.fetch = async function(...args) {
+        const response = await originalFetch.apply(this, args);
+        if (response.status === 401 && !args[0].includes('/api/auth/status') && !args[0].includes('/api/auth/login')) {
+            handleAuthError();
+        }
+        return response;
+    };
+
+    const handleAuthError = () => {
+        currentSessionId = null;
+        localStorage.removeItem("currentSessionId");
+        chatContainer.innerHTML = '';
+        sessionList.innerHTML = '';
+        authModal.style.display = "flex";
+    };
+
     // --- Auth Flow ---
     const checkAuthStatus = async () => {
         try {
-            const res = await fetch("/api/auth/status");
+            const res = await originalFetch("/api/auth/status");
             const data = await res.json();
             if (!data.authenticated) {
-                startAuthFlow();
+                authModal.style.display = "flex";
             } else {
+                authModal.style.display = "none";
                 loadSessions();
             }
         } catch (err) {
@@ -417,52 +437,59 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    const startAuthFlow = async () => {
-        authModal.style.display = "flex";
-        authUrlLink.textContent = "Lade Login-URL...";
-        
-        try {
-            const res = await fetch("/api/auth/start", { method: "POST" });
-            const data = await res.json();
-            
-            authUrlLink.href = data.url;
-            authUrlLink.textContent = data.url;
-        } catch (err) {
-            authUrlLink.textContent = "Fehler beim Laden der URL.";
-            console.error(err);
-        }
-    };
-
     authForm.addEventListener("submit", async (e) => {
         e.preventDefault();
-        const code = authCodeInput.value.trim();
-        if (!code) return;
+        const username = loginUsernameInput.value.trim();
+        const password = loginPasswordInput.value;
+        if (!username || !password) return;
 
         verifyBtn.disabled = true;
         verifyBtn.textContent = "Wird verifiziert...";
 
         try {
-            const res = await fetch("/api/auth/verify", {
+            const formData = new URLSearchParams();
+            formData.append("username", username);
+            formData.append("password", password);
+
+            const res = await originalFetch("/api/auth/login", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ code })
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: formData.toString()
             });
-            const data = await res.json();
             
-            if (data.success) {
-                authModal.style.display = "none";
-                loadSessions();
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success) {
+                    authModal.style.display = "none";
+                    loginPasswordInput.value = ""; // clear password
+                    loadSessions();
+                } else {
+                    alert("Login fehlgeschlagen. Bitte überprüfe deine Daten.");
+                }
             } else {
-                alert("Verifizierung fehlgeschlagen. Bitte versuche es erneut.");
-                verifyBtn.disabled = false;
-                verifyBtn.textContent = "Verifizieren";
+                alert("Login fehlgeschlagen. Bitte überprüfe deine Daten.");
             }
         } catch (err) {
-            console.error("Error verifying code", err);
+            console.error("Error logging in", err);
+            alert("Ein Fehler ist aufgetreten.");
+        } finally {
             verifyBtn.disabled = false;
-            verifyBtn.textContent = "Verifizieren";
+            verifyBtn.textContent = "Anmelden";
         }
     });
+
+    if (logoutBtn) {
+        logoutBtn.addEventListener("click", async () => {
+            if (confirm("Möchtest du dich wirklich abmelden?")) {
+                try {
+                    await originalFetch("/api/auth/logout", { method: "POST" });
+                    handleAuthError();
+                } catch (err) {
+                    console.error("Error logging out", err);
+                }
+            }
+        });
+    }
 
     // Init
     checkAuthStatus();

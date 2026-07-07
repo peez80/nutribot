@@ -31,7 +31,19 @@ The application is fully containerized and can be started with Docker Compose:
 3. Open your web browser and navigate to `http://localhost:8000`.
 
 ### Data Storage
-Data such as logged meals and symptoms are stored in the local `_nutrition_data_volume` directory, which is mapped into the container.
+Data such as logged meals and symptoms are stored in the local `_nutrition_data_volume` directory, which is mapped into the container. Die Daten werden für jeden Benutzer in eigenen Unterordnern isoliert gespeichert (z. B. `data/alice/sessions`).
+
+### User Management
+The application supports multi-user authentication without self-registration. Valid users and their passwords must be configured manually in the `users.json` file located in the root of the project.
+
+Example `users.json`:
+```json
+{
+  "alice": "secret123",
+  "bob": "password"
+}
+```
+*Note: Passwords are currently stored in plain text as per the configuration.*
 
 ## Architecture
 - `app/main.py`: The FastAPI application entry point, handling routing and HTTP requests.

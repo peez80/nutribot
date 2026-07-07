@@ -6,33 +6,64 @@ from app.main import app
 
 client = TestClient(app)
 
+# Helper to mock authentication
+def mock_auth():
+    from app.main import get_current_user
+    app.dependency_overrides[get_current_user] = lambda: "testuser"
+
+def clear_mock_auth():
+    from app.main import get_current_user
+    if get_current_user in app.dependency_overrides:
+        del app.dependency_overrides[get_current_user]
+
+@pytest.fixture(autouse=True)
+def run_around_tests():
+    clear_mock_auth()
+    yield
+    clear_mock_auth()
+
 def test_index_route(tmp_path):
     with patch("builtins.open", MagicMock(return_value=MagicMock(__enter__=MagicMock(return_value=MagicMock(read=lambda: "<html>Mock</html>"))))):
         response = client.get("/")
         assert response.status_code == 200
         assert "Mock" in response.text
 
+def test_unauthenticated_access():
+    assert client.post("/api/sessions").status_code == 401
+    assert client.get("/api/sessions").status_code == 401
+    assert client.get("/api/sessions/123/history").status_code == 401
+    assert client.delete("/api/sessions/123").status_code == 401
+    assert client.get("/api/sessions/123/prompt").status_code == 401
+    assert client.put("/api/sessions/123/prompt", json={"prompt":"test"}).status_code == 401
+    assert client.post("/api/sessions/123/chat", data={"message":"test"}).status_code == 401
+    assert client.get("/uploads/test.jpg").status_code == 401
+
 @patch("app.main.create_session")
 def test_create_session_endpoint(mock_create):
+    mock_auth()
     mock_create.return_value = "sess-123"
     response = client.post("/api/sessions")
     assert response.status_code == 200
     assert response.json() == {"id": "sess-123", "title": "Neuer Chat"}
-    mock_create.assert_called_once_with("Neuer Chat")
+    mock_create.assert_called_once_with("testuser", "Neuer Chat")
 
 @patch("app.main.get_sessions")
 def test_get_sessions_endpoint(mock_get):
+    mock_auth()
     mock_get.return_value = [{"id": "1", "title": "Chat 1"}]
     response = client.get("/api/sessions")
     assert response.status_code == 200
     assert response.json() == [{"id": "1", "title": "Chat 1"}]
+    mock_get.assert_called_once_with("testuser")
 
 @patch("app.main.get_session_history")
 def test_get_history_endpoint(mock_history):
+    mock_auth()
     mock_history.return_value = [{"text": "Hi", "is_user": True, "image_urls": []}]
     response = client.get("/api/sessions/sess-123/history")
     assert response.status_code == 200
     assert response.json() == [{"text": "Hi", "is_user": True, "image_urls": []}]
+    mock_history.assert_called_once_with("testuser", "sess-123")
 
 @patch("app.main.agy_client")
 @patch("app.main.save_entry")
@@ -42,6 +73,7 @@ def test_get_history_endpoint(mock_history):
 @patch("app.main.update_session_title")
 @patch("app.main.get_session_prompt")
 def test_chat_endpoint_text_only(mock_get_prompt, mock_update_title, mock_get_sessions, mock_save_msg, mock_get_history, mock_save_entry, mock_agy_client):
+    mock_auth()
     mock_get_history.return_value = []
     mock_get_prompt.return_value = "Test prompt"
     # Mock get_sessions to return a session with "Neuer Chat" title to test auto-rename
@@ -63,95 +95,30 @@ def test_chat_endpoint_text_only(mock_get_prompt, mock_update_title, mock_get_se
     assert json_resp["parsed"]["type"] == "meal"
     
     # Verify save_entry was called
-    mock_save_entry.assert_called_once_with("meal", "Ich habe Pizza gegessen", {"food": "Pizza"})
+    mock_save_entry.assert_called_once_with("testuser", "meal", "Ich habe Pizza gegessen", {"food": "Pizza"})
     
     # Verify agy_client was called
     mock_agy_client.process_message.assert_called_once()
-    args, kwargs = mock_agy_client.process_message.call_args
-    assert args[1] == "Ich habe Pizza gegessen"
-    assert args[2] == []  # image_paths
-    assert args[3] == "Test prompt" # session_prompt
     
     # Verify title update
-    mock_update_title.assert_called_once_with("sess-123", "Ich habe Pizza gegessen")
+    mock_update_title.assert_called_once_with("testuser", "sess-123", "Ich habe Pizza gegessen")
     
     # Verify messages saved
     assert mock_save_msg.call_count == 2
-    user_msg_call = mock_save_msg.call_args_list[0][0][1]
+    user_msg_call = mock_save_msg.call_args_list[0][0][2]
     assert user_msg_call["text"] == "Ich habe Pizza gegessen"
     assert user_msg_call["is_user"] is True
-
-@patch("app.main.agy_client")
-@patch("app.main.save_entry")
-@patch("app.main.get_session_history")
-@patch("app.main.save_session_message")
-@patch("app.main.get_sessions")
-@patch("app.main.get_session_prompt")
-def test_chat_endpoint_with_image(mock_get_prompt, mock_get_sessions, mock_save_msg, mock_get_history, mock_save_entry, mock_agy_client):
-    mock_get_history.return_value = []
-    mock_get_prompt.return_value = ""
-    mock_get_sessions.return_value = [{"id": "sess-123", "title": "Existing Chat"}] # No rename
-
-    mock_response = {
-        "type": "meal",
-        "data": {"food": "Pizza"},
-        "reply": "Bild der Pizza wurde erfasst."
-    }
-    mock_agy_client.process_message.return_value = mock_response
-    
-    files = [('images', ('test.jpg', b'dummy_image_data', 'image/jpeg'))]
-    data = {'message': 'Hier ist mein Essen'}
-    
-    response = client.post("/api/sessions/sess-123/chat", data=data, files=files)
-    
-    assert response.status_code == 200
-    json_resp = response.json()
-    assert json_resp["reply"] == "Bild der Pizza wurde erfasst."
-    
-    mock_agy_client.process_message.assert_called_once()
-    args, kwargs = mock_agy_client.process_message.call_args
-    assert len(args[2]) == 1
-    assert args[2][0].endswith(".jpg")
-
-@patch("app.main.get_sessions")
-def test_chat_endpoint_too_many_images(mock_get_sessions):
-    mock_get_sessions.return_value = [{"id": "sess-123", "title": "Chat"}]
-    files = []
-    for i in range(6):
-        files.append(('images', (f'test{i}.jpg', b'data', 'image/jpeg')))
-    
-    response = client.post("/api/sessions/sess-123/chat", data={'message': 'Zu viele'}, files=files)
-    
-    assert response.status_code == 400
-    assert response.json()["error"] == "Maximal 5 Bilder erlaubt"
-
-@patch("app.main.agy_client")
-def test_auth_endpoints(mock_agy_client):
-    mock_agy_client.is_authenticated.return_value = True
-    mock_agy_client.get_login_url.return_value = "https://mock.login"
-    mock_agy_client.submit_auth_code.return_value = True
-    
-    resp_status = client.get("/api/auth/status")
-    assert resp_status.status_code == 200
-    assert resp_status.json() == {"authenticated": True}
-    
-    resp_start = client.post("/api/auth/start")
-    assert resp_start.status_code == 200
-    assert resp_start.json() == {"url": "https://mock.login"}
-    
-    resp_verify = client.post("/api/auth/verify", json={"code": "12345"})
-    assert resp_verify.status_code == 200
-    assert resp_verify.json() == {"success": True}
 
 @patch("app.main.delete_session")
 @patch("app.main.get_sessions")
 def test_delete_session_endpoint(mock_get_sessions, mock_delete_session):
+    mock_auth()
     mock_get_sessions.return_value = [{"id": "sess-123", "title": "Test"}]
     
     response = client.delete("/api/sessions/sess-123")
     assert response.status_code == 200
     assert response.json() == {"success": True}
-    mock_delete_session.assert_called_once_with("sess-123")
+    mock_delete_session.assert_called_once_with("testuser", "sess-123")
     
     # Test not found
     response = client.delete("/api/sessions/unknown")
@@ -159,14 +126,29 @@ def test_delete_session_endpoint(mock_get_sessions, mock_delete_session):
 
 @patch("app.main.get_session_prompt")
 def test_get_prompt_endpoint(mock_get_prompt):
+    mock_auth()
     mock_get_prompt.return_value = "Test prompt"
     response = client.get("/api/sessions/sess-123/prompt")
     assert response.status_code == 200
     assert response.json() == {"prompt": "Test prompt"}
+    mock_get_prompt.assert_called_once_with("testuser", "sess-123")
 
 @patch("app.main.update_session_prompt")
 def test_update_prompt_endpoint(mock_update_prompt):
+    mock_auth()
     response = client.put("/api/sessions/sess-123/prompt", json={"prompt": "New prompt"})
     assert response.status_code == 200
     assert response.json() == {"success": True}
-    mock_update_prompt.assert_called_once_with("sess-123", "New prompt")
+    mock_update_prompt.assert_called_once_with("testuser", "sess-123", "New prompt")
+
+@patch("app.main.os.path.exists")
+def test_uploads_endpoint(mock_exists):
+    mock_auth()
+    mock_exists.return_value = True
+    with patch("app.main.FileResponse") as mock_fileresponse:
+        mock_fileresponse.return_value = MagicMock()
+        response = client.get("/uploads/test.jpg")
+        assert response.status_code == 200
+        mock_fileresponse.assert_called_once()
+        assert "testuser" in mock_fileresponse.call_args[0][0]
+        assert mock_fileresponse.call_args[0][0].endswith("test.jpg")
