@@ -22,6 +22,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const loginPasswordInput = document.getElementById("login-password");
     const verifyBtn = document.getElementById("verify-btn");
     const logoutBtn = document.getElementById("logout-btn");
+    const userBadge = document.getElementById("user-badge");
 
     // System Prompt elements
     const systemPromptBtn = document.getElementById("system-prompt-btn");
@@ -419,17 +420,30 @@ document.addEventListener("DOMContentLoaded", () => {
         chatContainer.innerHTML = '';
         sessionList.innerHTML = '';
         authModal.style.display = "flex";
+        updateUserBadge(null);
     };
 
     // --- Auth Flow ---
+    const updateUserBadge = (username) => {
+        if (userBadge && username) {
+            userBadge.style.display = "flex";
+            userBadge.textContent = username.charAt(0);
+            userBadge.title = `Angemeldet als: ${username}`;
+        } else if (userBadge) {
+            userBadge.style.display = "none";
+        }
+    };
+
     const checkAuthStatus = async () => {
         try {
             const res = await originalFetch("/api/auth/status");
             const data = await res.json();
             if (!data.authenticated) {
                 authModal.style.display = "flex";
+                updateUserBadge(null);
             } else {
                 authModal.style.display = "none";
+                updateUserBadge(data.username);
                 loadSessions();
             }
         } catch (err) {
@@ -462,6 +476,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (data.success) {
                     authModal.style.display = "none";
                     loginPasswordInput.value = ""; // clear password
+                    updateUserBadge(username);
                     loadSessions();
                 } else {
                     alert("Login fehlgeschlagen. Bitte überprüfe deine Daten.");
