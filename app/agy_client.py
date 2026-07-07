@@ -117,7 +117,7 @@ class AgyClient:
                 self._login_process = None
             return False
 
-    def process_message(self, context_messages: list, new_message: str, image_paths: list = None) -> dict:
+    def process_message(self, context_messages: list, new_message: str, image_paths: list = None, system_prompt: str = None) -> dict:
         """
         Calls the `agy` CLI with the provided context, new message, and optional image.
         Returns a dictionary representing the structured data extracted by the AI,
@@ -136,7 +136,10 @@ class AgyClient:
         # We loop to truncate oldest messages if the built prompt is too large
         while True:
             # Format the prompt
-            prompt = "Context:\n"
+            prompt = ""
+            if system_prompt:
+                prompt += f"Systemanweisung:\n{system_prompt}\n\n"
+            prompt += "Context:\n"
             for msg in context_messages:
                 role = "User" if msg.get("is_user") else "AI"
                 prompt += f"{role}: {msg.get('text')}\n"

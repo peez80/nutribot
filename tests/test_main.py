@@ -40,8 +40,10 @@ def test_get_history_endpoint(mock_history):
 @patch("app.main.save_session_message")
 @patch("app.main.get_sessions")
 @patch("app.main.update_session_title")
-def test_chat_endpoint_text_only(mock_update_title, mock_get_sessions, mock_save_msg, mock_get_history, mock_save_entry, mock_agy_client):
+@patch("app.main.get_session_prompt")
+def test_chat_endpoint_text_only(mock_get_prompt, mock_update_title, mock_get_sessions, mock_save_msg, mock_get_history, mock_save_entry, mock_agy_client):
     mock_get_history.return_value = []
+    mock_get_prompt.return_value = "Test prompt"
     # Mock get_sessions to return a session with "Neuer Chat" title to test auto-rename
     mock_get_sessions.return_value = [{"id": "sess-123", "title": "Neuer Chat"}]
     
@@ -68,6 +70,7 @@ def test_chat_endpoint_text_only(mock_update_title, mock_get_sessions, mock_save
     args, kwargs = mock_agy_client.process_message.call_args
     assert args[1] == "Ich habe Pizza gegessen"
     assert args[2] == []  # image_paths
+    assert args[3] == "Test prompt" # session_prompt
     
     # Verify title update
     mock_update_title.assert_called_once_with("sess-123", "Ich habe Pizza gegessen")
@@ -83,8 +86,10 @@ def test_chat_endpoint_text_only(mock_update_title, mock_get_sessions, mock_save
 @patch("app.main.get_session_history")
 @patch("app.main.save_session_message")
 @patch("app.main.get_sessions")
-def test_chat_endpoint_with_image(mock_get_sessions, mock_save_msg, mock_get_history, mock_save_entry, mock_agy_client):
+@patch("app.main.get_session_prompt")
+def test_chat_endpoint_with_image(mock_get_prompt, mock_get_sessions, mock_save_msg, mock_get_history, mock_save_entry, mock_agy_client):
     mock_get_history.return_value = []
+    mock_get_prompt.return_value = ""
     mock_get_sessions.return_value = [{"id": "sess-123", "title": "Existing Chat"}] # No rename
 
     mock_response = {
@@ -151,3 +156,17 @@ def test_delete_session_endpoint(mock_get_sessions, mock_delete_session):
     # Test not found
     response = client.delete("/api/sessions/unknown")
     assert response.status_code == 404
+
+@patch("app.main.get_session_prompt")
+def test_get_prompt_endpoint(mock_get_prompt):
+    mock_get_prompt.return_value = "Test prompt"
+    response = client.get("/api/sessions/sess-123/prompt")
+    assert response.status_code == 200
+    assert response.json() == {"prompt": "Test prompt"}
+
+@patch("app.main.update_session_prompt")
+def test_update_prompt_endpoint(mock_update_prompt):
+    response = client.put("/api/sessions/sess-123/prompt", json={"prompt": "New prompt"})
+    assert response.status_code == 200
+    assert response.json() == {"success": True}
+    mock_update_prompt.assert_called_once_with("sess-123", "New prompt")

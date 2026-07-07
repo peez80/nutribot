@@ -56,7 +56,8 @@ def create_session(title: str = "Neuer Chat") -> str:
         "id": session_id,
         "title": title,
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "history": []
+        "history": [],
+        "system_prompt": ""
     }
     
     with open(filepath, "w", encoding="utf-8") as f:
@@ -137,3 +138,31 @@ def delete_session(session_id: str):
     filepath = get_session_filepath(session_id)
     if os.path.exists(filepath):
         os.remove(filepath)
+
+def get_session_prompt(session_id: str) -> str:
+    filepath = get_session_filepath(session_id)
+    if not os.path.exists(filepath):
+        return ""
+        
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data.get("system_prompt", "")
+    except Exception:
+        return ""
+
+def update_session_prompt(session_id: str, prompt: str):
+    filepath = get_session_filepath(session_id)
+    if not os.path.exists(filepath):
+        return
+        
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            
+        data["system_prompt"] = prompt
+        
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+    except Exception:
+        pass

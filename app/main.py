@@ -14,7 +14,8 @@ from .agy_client import agy_client
 from .storage import (
     init_storage, save_entry, DATA_DIR,
     create_session, get_sessions, get_session_history,
-    save_session_message, update_session_title, delete_session
+    save_session_message, update_session_title, delete_session,
+    get_session_prompt, update_session_prompt
 )
 
 app = FastAPI(title="AI Nutrition Diary App")
@@ -74,6 +75,19 @@ async def delete_session_endpoint(session_id: str):
     delete_session(session_id)
     return {"success": True}
 
+class SystemPromptRequest(BaseModel):
+    prompt: str
+
+@app.get("/api/sessions/{session_id}/prompt")
+async def get_prompt_endpoint(session_id: str):
+    prompt = get_session_prompt(session_id)
+    return {"prompt": prompt}
+
+@app.put("/api/sessions/{session_id}/prompt")
+async def update_prompt_endpoint(session_id: str, req: SystemPromptRequest):
+    update_session_prompt(session_id, req.prompt)
+    return {"success": True}
+
 @app.post("/api/sessions/{session_id}/chat")
 async def chat_endpoint(
     session_id: str,
@@ -129,7 +143,8 @@ async def chat_endpoint(
     save_session_message(session_id, user_msg_data)
 
     # Process via agy with FULL context
-    parsed_response = agy_client.process_message(history, message, image_paths)
+    session_prompt = get_session_prompt(session_id)
+    parsed_response = agy_client.process_message(history, message, image_paths, session_prompt)
         
     # Extract data
     entry_type = parsed_response.get("type", "unknown")

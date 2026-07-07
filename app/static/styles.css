@@ -411,6 +411,42 @@ body {
     cursor: not-allowed;
 }
 
+.secondary-btn {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.secondary-btn:hover {
+    color: var(--text-main);
+    border-color: var(--text-muted);
+}
+
+.prompt-textarea {
+    width: 100%;
+    min-height: 150px;
+    resize: vertical;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    font-family: inherit;
+    font-size: 1rem;
+    outline: none;
+}
+
+.prompt-textarea:focus {
+    border-color: var(--primary-color);
+}
+
 /* Chat Images */
 .chat-images-grid {
     display: flex;

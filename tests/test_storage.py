@@ -172,3 +172,54 @@ def test_delete_session(mock_remove, mock_exists):
     mock_exists.assert_called_once()
     mock_remove.assert_called_once()
     assert mock_remove.call_args[0][0].endswith("session_123.json")
+
+@patch('builtins.open', new_callable=mock_open)
+@patch('app.storage.os.path.exists')
+def test_get_session_prompt(mock_exists, mock_file):
+    from app.storage import get_session_prompt
+    mock_exists.return_value = True
+    
+    session_data = json.dumps({
+        "id": "123",
+        "system_prompt": "You are a chef."
+    })
+    mock_file.return_value.read.return_value = session_data
+    
+    prompt = get_session_prompt("123")
+    assert prompt == "You are a chef."
+
+@patch('builtins.open', new_callable=mock_open)
+@patch('app.storage.os.path.exists')
+def test_get_session_prompt_fallback(mock_exists, mock_file):
+    from app.storage import get_session_prompt
+    mock_exists.return_value = True
+    
+    session_data = json.dumps({
+        "id": "123"
+        # No system_prompt field
+    })
+    mock_file.return_value.read.return_value = session_data
+    
+    prompt = get_session_prompt("123")
+    assert prompt == ""
+
+@patch('builtins.open', new_callable=mock_open)
+@patch('app.storage.os.path.exists')
+def test_update_session_prompt(mock_exists, mock_file):
+    from app.storage import update_session_prompt
+    mock_exists.return_value = True
+    
+    session_data = json.dumps({
+        "id": "123",
+        "system_prompt": ""
+    })
+    
+    mock_file.return_value.read.return_value = session_data
+    
+    update_session_prompt("123", "New Prompt")
+    
+    handle = mock_file()
+    written_data = "".join([call.args[0] for call in handle.write.call_args_list])
+    loaded_data = json.loads(written_data)
+    
+    assert loaded_data["system_prompt"] == "New Prompt"

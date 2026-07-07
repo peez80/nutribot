@@ -22,6 +22,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const authCodeInput = document.getElementById("auth-code-input");
     const verifyBtn = document.getElementById("verify-btn");
 
+    // System Prompt elements
+    const systemPromptBtn = document.getElementById("system-prompt-btn");
+    const systemPromptModal = document.getElementById("system-prompt-modal");
+    const systemPromptForm = document.getElementById("system-prompt-form");
+    const systemPromptInput = document.getElementById("system-prompt-input");
+    const closePromptBtn = document.getElementById("close-prompt-btn");
+    const savePromptBtn = document.getElementById("save-prompt-btn");
+
     let selectedImageFiles = [];
     let currentSessionId = localStorage.getItem("currentSessionId");
 
@@ -170,7 +178,17 @@ document.addEventListener("DOMContentLoaded", () => {
             sidebar.classList.remove("open");
         }
 
+        // Enable system prompt button
+        systemPromptBtn.disabled = false;
+
         try {
+            // Fetch system prompt
+            const promptRes = await fetch(`/api/sessions/${sessionId}/prompt`);
+            if (promptRes.ok) {
+                const promptData = await promptRes.json();
+                systemPromptInput.value = promptData.prompt || "";
+            }
+
             const response = await fetch(`/api/sessions/${sessionId}/history`);
             const history = await response.json();
             
@@ -342,6 +360,45 @@ document.addEventListener("DOMContentLoaded", () => {
             removeTypingIndicator();
             appendMessage("Es gab einen Verbindungsfehler. Bitte versuche es später noch einmal.", false);
             console.error("Error calling chat API", error);
+        }
+    });
+
+    // --- System Prompt Flow ---
+    systemPromptBtn.addEventListener("click", () => {
+        if (!currentSessionId) return;
+        systemPromptModal.style.display = "flex";
+    });
+
+    closePromptBtn.addEventListener("click", () => {
+        systemPromptModal.style.display = "none";
+    });
+
+    systemPromptForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!currentSessionId) return;
+
+        const promptText = systemPromptInput.value.trim();
+        savePromptBtn.disabled = true;
+        savePromptBtn.textContent = "Wird gespeichert...";
+
+        try {
+            const res = await fetch(`/api/sessions/${currentSessionId}/prompt`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ prompt: promptText })
+            });
+
+            if (res.ok) {
+                systemPromptModal.style.display = "none";
+            } else {
+                alert("Fehler beim Speichern des Prompts.");
+            }
+        } catch (err) {
+            console.error("Error saving prompt", err);
+            alert("Verbindungsfehler beim Speichern.");
+        } finally {
+            savePromptBtn.disabled = false;
+            savePromptBtn.textContent = "Speichern";
         }
     });
 
