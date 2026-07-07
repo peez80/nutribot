@@ -224,7 +224,11 @@ async def chat_endpoint(
 
     # Process via agy with FULL context
     session_prompt = get_session_prompt(username, session_id)
-    parsed_response = agy_client.process_message(history, message, image_paths, session_prompt)
+    
+    technical_prompt = f"TECHNISCHE VORAUSSETZUNG: Wenn du Dateien lokal persistierst, speichere sie immer unter dem Verzeichnis des jeweiligen Users, also unter /app/data/{username}/data."
+    combined_prompt = f"{technical_prompt}\n\n{session_prompt}" if session_prompt else technical_prompt
+    
+    parsed_response = agy_client.process_message(history, message, image_paths, combined_prompt)
         
     # Extract data
     entry_type = parsed_response.get("type", "unknown")
