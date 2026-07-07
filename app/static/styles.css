@@ -127,6 +127,11 @@ body {
     word-wrap: break-word;
 }
 
+.message-bubble pre {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
 .ai-message .message-bubble {
     background-color: var(--ai-bubble);
     border: 1px solid var(--border-color);
@@ -240,6 +245,7 @@ body {
 
 #message-input {
     flex: 1;
+    min-width: 0;
     background: transparent;
     border: none;
     color: var(--text-main);
@@ -598,6 +604,19 @@ body {
     
     .sidebar.open {
         transform: translateX(0);
+    }
+    
+    .input-area {
+        padding: 0.5rem;
+    }
+    
+    .input-form {
+        padding: 0.25rem 0.5rem;
+        gap: 0.25rem;
+    }
+    
+    .chat-container {
+        padding: 1rem 0.5rem;
     }
 }
 
