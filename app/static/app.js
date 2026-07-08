@@ -1,4 +1,9 @@
 document.addEventListener("DOMContentLoaded", () => {
+    // Configure marked for chat-style breaks
+    if (typeof marked !== 'undefined') {
+        marked.use({ breaks: true });
+    }
+
     const chatContainer = document.getElementById("chat-container");
     const chatForm = document.getElementById("chat-form");
     const messageInput = document.getElementById("message-input");
@@ -57,7 +62,15 @@ document.addEventListener("DOMContentLoaded", () => {
         
         if (text) {
             const textDiv = document.createElement("div");
-            textDiv.textContent = text;
+            
+            if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+                const parsedHTML = marked.parse(text);
+                textDiv.innerHTML = DOMPurify.sanitize(parsedHTML);
+                textDiv.className = "markdown-body";
+            } else {
+                textDiv.textContent = text;
+            }
+            
             bubble.appendChild(textDiv);
         }
         
