@@ -246,6 +246,22 @@ async def chat_endpoint(
     
     return JSONResponse(content={"reply": ai_reply, "parsed": parsed_response, "context_truncated": context_truncated})
 
+# Secure Downloads Endpoint for AI Generated files
+@app.get("/app/data/{username}/data/{file_path:path}")
+async def download_file(username: str, file_path: str, current_user: str = Depends(get_current_user)):
+    if username != current_user:
+        raise HTTPException(status_code=403, detail="Forbidden")
+        
+    base_dir = os.path.abspath(os.path.join(DATA_DIR, username, "data"))
+    full_path = os.path.abspath(os.path.join(base_dir, file_path))
+    
+    if not full_path.startswith(base_dir):
+        raise HTTPException(status_code=400, detail="Invalid path")
+        
+    if os.path.isfile(full_path):
+        return FileResponse(full_path, filename=os.path.basename(full_path))
+    raise HTTPException(status_code=404, detail="File not found")
+
 # Secure Uploads Endpoint
 @app.get("/uploads/{filename}")
 async def get_upload(filename: str, username: str = Depends(get_current_user)):

@@ -87,6 +87,38 @@ document.addEventListener("DOMContentLoaded", () => {
             bubble.appendChild(gridDiv);
         }
         
+        if (!isUser && text) {
+            const pathRegex = /\/app\/data\/([a-zA-Z0-9_-]+)\/data\/([^\s"'`<>()*\[\]]+)/g;
+            let match;
+            const downloadLinks = [];
+            while ((match = pathRegex.exec(text)) !== null) {
+                let linkPath = match[0];
+                if (linkPath.endsWith('.') || linkPath.endsWith(',')) {
+                    linkPath = linkPath.slice(0, -1);
+                }
+                downloadLinks.push(linkPath);
+            }
+            
+            const uniqueLinks = Array.from(new Set(downloadLinks));
+        
+            if (uniqueLinks.length > 0) {
+                const downloadContainer = document.createElement("div");
+                downloadContainer.className = "download-links-container";
+                
+                uniqueLinks.forEach(linkPath => {
+                    const btn = document.createElement("a");
+                    btn.href = linkPath;
+                    btn.target = "_blank";
+                    btn.download = linkPath.split('/').pop();
+                    btn.className = "download-btn";
+                    btn.innerHTML = `<i class="ph-bold ph-download-simple"></i> ${linkPath.split('/').pop()}`;
+                    downloadContainer.appendChild(btn);
+                });
+                
+                bubble.appendChild(downloadContainer);
+            }
+        }
+        
         msgDiv.appendChild(bubble);
         chatContainer.appendChild(msgDiv);
         scrollToBottom();

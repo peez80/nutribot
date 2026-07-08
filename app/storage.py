@@ -17,6 +17,7 @@ def init_user_storage(username: str):
     os.makedirs(user_dir, exist_ok=True)
     os.makedirs(os.path.join(user_dir, "uploads"), exist_ok=True)
     os.makedirs(os.path.join(user_dir, "sessions"), exist_ok=True)
+    os.makedirs(os.path.join(user_dir, "data"), exist_ok=True)
 
 def save_entry(username: str, entry_type: str, raw_input: str, structured_data: dict) -> str:
     """
