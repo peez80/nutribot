@@ -709,3 +709,10 @@ body {
     }
 }
 
+/* Ensure interactive elements like the delete button are visible on touch devices */
+@media (hover: none) {
+    .session-item .icon-button {
+        opacity: 1;
+    }
+}
+
