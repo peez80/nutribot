@@ -118,7 +118,7 @@ class AgyClient:
                 self._login_process = None
             return False
 
-    def process_message(self, context_messages: list, new_message: str, image_paths: list = None, system_prompt: str = None) -> dict:
+    def process_message(self, context_messages: list, new_message: str, image_paths: list = None, system_prompt: str = None, cwd: str = None) -> dict:
         """
         Calls the `agy` CLI with the provided context, new message, and optional image.
         Returns a dictionary containing the AI's response text.
@@ -151,7 +151,12 @@ class AgyClient:
             else:
                 break
 
-        cmd = [self.executable_path, "--prompt", prompt]
+        cmd = [self.executable_path, "--sandbox", "--add-dir", ".", "--dangerously-skip-permissions"]
+        if image_paths:
+            img_dirs = set(os.path.dirname(p) for p in image_paths)
+            for d in img_dirs:
+                cmd.extend(["--add-dir", d])
+        cmd.extend(["--prompt", prompt])
         MAX_RETRIES = 5
 
         for attempt in range(MAX_RETRIES + 1):
@@ -159,7 +164,7 @@ class AgyClient:
                 # We use text=True to get a string back, capture stdout and stderr
                 # Note: For this demo/setup, if `agy` is not installed, this will fail.
                 # In a real environment, it will run the CLI.
-                result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                result = subprocess.run(cmd, capture_output=True, text=True, check=True, cwd=cwd)
                 
                 output = result.stdout.strip()
                 

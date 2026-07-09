@@ -223,12 +223,21 @@ async def chat_endpoint(
     save_session_message(username, session_id, user_msg_data)
 
     # Process via agy with FULL context
+    user_data_dir = os.path.abspath(os.path.join(DATA_DIR, username, "data"))
+    os.makedirs(user_data_dir, exist_ok=True)
+    
     session_prompt = get_session_prompt(username, session_id)
     
-    technical_prompt = f"TECHNISCHE VORAUSSETZUNG: Wenn du Dateien lokal persistierst, speichere sie immer unter dem Verzeichnis des jeweiligen Users, also unter /app/data/{username}/data."
+    technical_prompt = "TECHNISCHE VORAUSSETZUNG: Speichere und lese lokale Dateien immer nur im aktuellen Arbeitsverzeichnis (.). Du darfst dieses Verzeichnis nicht verlassen (keine ../ Pfade) und auf keine anderen Systemdateien zugreifen."
     combined_prompt = f"{technical_prompt}\n\n{session_prompt}" if session_prompt else technical_prompt
     
-    parsed_response = agy_client.process_message(history, message, image_paths, combined_prompt)
+    parsed_response = agy_client.process_message(
+        context_messages=history, 
+        new_message=message, 
+        image_paths=image_paths, 
+        system_prompt=combined_prompt,
+        cwd=user_data_dir
+    )
         
     ai_reply = parsed_response.get("reply", "Entschuldigung, ich habe das nicht verstanden.")
     context_truncated = parsed_response.get("context_truncated", False)
