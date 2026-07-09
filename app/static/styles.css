@@ -756,3 +756,27 @@ body {
     }
 }
 
+/* AI Reasoning Block Styles */
+.ai-reasoning {
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.ai-reasoning summary {
+    cursor: pointer;
+    font-weight: 500;
+    user-select: none;
+    outline: none;
+}
+
+.ai-reasoning .reasoning-content {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-color);
+    white-space: pre-wrap; 
+}

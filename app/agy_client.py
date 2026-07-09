@@ -163,6 +163,47 @@ class AgyClient:
                 
                 output = result.stdout.strip()
                 
+                lines = output.split('\n')
+                new_lines = []
+                reasoning_buffer = []
+
+                reasoning_prefixes = ("I will ", "Let's ", "Ich werde ", "Lass uns ")
+
+                def flush_reasoning():
+                    if not reasoning_buffer:
+                        return
+                    
+                    empty_lines = []
+                    while reasoning_buffer and not reasoning_buffer[-1].strip():
+                        empty_lines.insert(0, reasoning_buffer.pop())
+                        
+                    if reasoning_buffer:
+                        new_lines.append("")
+                        new_lines.append("<details class='ai-reasoning'>")
+                        new_lines.append("  <summary>Gedankengang der KI</summary>")
+                        new_lines.append("  <div class='reasoning-content'>")
+                        new_lines.extend(reasoning_buffer)
+                        new_lines.append("  </div>")
+                        new_lines.append("</details>")
+                        new_lines.append("")
+                        reasoning_buffer.clear()
+                        
+                    new_lines.extend(empty_lines)
+
+                for line in lines:
+                    stripped = line.strip()
+                    if stripped.startswith(reasoning_prefixes):
+                        reasoning_buffer.append(line)
+                    elif not stripped and reasoning_buffer:
+                        reasoning_buffer.append(line)
+                    else:
+                        flush_reasoning()
+                        new_lines.append(line)
+
+                flush_reasoning()
+
+                output = "\n".join(new_lines).strip()
+                
                 return {
                     "reply": output,
                     "context_truncated": context_truncated
