@@ -109,3 +109,41 @@ def test_process_message_json_error(mock_run, client):
     
     assert result["type"] == "unknown"
     assert "Something went wrong" in result["data"]["raw_output"]
+
+@patch("app.agy_client.time.sleep")
+@patch("app.agy_client.subprocess.run")
+def test_process_message_retry_success(mock_run, mock_sleep, client):
+    # Mock CLI failing twice, then succeeding
+    expected_response = {
+        "type": "meal",
+        "data": {"food": "Apfel"},
+        "reply": "Apfel notiert!",
+        "context_truncated": False
+    }
+    
+    mock_run.side_effect = [
+        subprocess.CalledProcessError(1, ["agy"], stderr="error 1"),
+        subprocess.CalledProcessError(1, ["agy"], stderr="error 2"),
+        MagicMock(stdout=f"```json\n{json.dumps(expected_response)}\n```\n", returncode=0)
+    ]
+    
+    result = client.process_message([], "Ein Apfel.")
+    
+    assert result == expected_response
+    assert mock_run.call_count == 3
+    assert mock_sleep.call_count == 2
+
+@patch("app.agy_client.time.sleep")
+@patch("app.agy_client.subprocess.run")
+def test_process_message_retry_failure(mock_run, mock_sleep, client):
+    # Mock CLI failing 6 times (1 initial + 5 retries)
+    mock_run.side_effect = [
+        subprocess.CalledProcessError(1, ["agy"], stderr=f"error {i}") for i in range(6)
+    ]
+    
+    result = client.process_message([], "Ein Apfel.")
+    
+    assert result["type"] == "error"
+    assert "nach 5 erfolglosen Versuchen" in result["reply"]
+    assert mock_run.call_count == 6
+    assert mock_sleep.call_count == 5

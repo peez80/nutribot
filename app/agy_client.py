@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import re
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -161,52 +162,59 @@ class AgyClient:
                 break
 
         cmd = [self.executable_path, "--prompt", prompt]
+        MAX_RETRIES = 5
 
-        try:
-            # We use text=True to get a string back, capture stdout and stderr
-            # Note: For this demo/setup, if `agy` is not installed, this will fail.
-            # In a real environment, it will run the CLI.
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            
-            output = result.stdout.strip()
-            
-            # Basic attempt to parse the JSON from output
+        for attempt in range(MAX_RETRIES + 1):
             try:
-                # If agy wraps JSON in markdown blocks, we might need to strip them
-                if output.startswith("```json"):
-                    output = output.replace("```json", "", 1)
-                if output.endswith("```"):
-                    output = output[::-1].replace("```", "", 1)[::-1]
+                # We use text=True to get a string back, capture stdout and stderr
+                # Note: For this demo/setup, if `agy` is not installed, this will fail.
+                # In a real environment, it will run the CLI.
+                result = subprocess.run(cmd, capture_output=True, text=True, check=True)
                 
-                parsed_data = json.loads(output.strip())
-                parsed_data["context_truncated"] = context_truncated
-                return parsed_data
-            except json.JSONDecodeError:
-                logger.error(f"Failed to parse JSON from agy: {output}")
+                output = result.stdout.strip()
+                
+                # Basic attempt to parse the JSON from output
+                try:
+                    # If agy wraps JSON in markdown blocks, we might need to strip them
+                    if output.startswith("```json"):
+                        output = output.replace("```json", "", 1)
+                    if output.endswith("```"):
+                        output = output[::-1].replace("```", "", 1)[::-1]
+                    
+                    parsed_data = json.loads(output.strip())
+                    parsed_data["context_truncated"] = context_truncated
+                    return parsed_data
+                except json.JSONDecodeError:
+                    logger.error(f"Failed to parse JSON from agy: {output}")
+                    return {
+                        "type": "unknown",
+                        "data": {"raw_output": output},
+                        "reply": "Ich konnte die Daten nicht verarbeiten, aber ich habe es mir gemerkt.",
+                        "context_truncated": context_truncated
+                    }
+                    
+            except FileNotFoundError:
+                # Mock response for local development when agy is missing
+                logger.warning("agy executable not found. Returning mock data.")
+                is_symptom = "schmerz" in new_message.lower() or "übel" in new_message.lower()
                 return {
-                    "type": "unknown",
-                    "data": {"raw_output": output},
-                    "reply": "Ich konnte die Daten nicht verarbeiten, aber ich habe es mir gemerkt.",
+                    "type": "symptom" if is_symptom else "meal",
+                    "data": {"mocked": True, "note": "This is mock data because agy was not found."},
+                    "reply": "Das habe ich als Symptom erfasst." if is_symptom else "Das Essen wurde notiert!",
                     "context_truncated": context_truncated
                 }
-                
-        except FileNotFoundError:
-            # Mock response for local development when agy is missing
-            logger.warning("agy executable not found. Returning mock data.")
-            is_symptom = "schmerz" in new_message.lower() or "übel" in new_message.lower()
-            return {
-                "type": "symptom" if is_symptom else "meal",
-                "data": {"mocked": True, "note": "This is mock data because agy was not found."},
-                "reply": "Das habe ich als Symptom erfasst." if is_symptom else "Das Essen wurde notiert!",
-                "context_truncated": context_truncated
-            }
-        except subprocess.CalledProcessError as e:
-            logger.error(f"agy command failed with code {e.returncode}: {e.stderr}")
-            return {
-                "type": "error",
-                "data": {},
-                "reply": "Entschuldigung, es gab einen internen Fehler bei der Verarbeitung.",
-                "context_truncated": context_truncated
-            }
+            except subprocess.CalledProcessError as e:
+                if attempt < MAX_RETRIES:
+                    logger.warning(f"agy command failed with code {e.returncode}: {e.stderr}. Retrying {attempt + 1}/{MAX_RETRIES}...")
+                    time.sleep(1)
+                    continue
+                else:
+                    logger.error(f"agy command failed with code {e.returncode}: {e.stderr} after {MAX_RETRIES} retries.")
+                    return {
+                        "type": "error",
+                        "data": {},
+                        "reply": f"Entschuldigung, es gab einen internen Fehler bei der Verarbeitung nach {MAX_RETRIES} erfolglosen Versuchen.",
+                        "context_truncated": context_truncated
+                    }
 
 agy_client = AgyClient()
