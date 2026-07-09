@@ -43,6 +43,7 @@ body {
     flex: 1;
     height: 100%;
     background-color: var(--bg-color);
+    min-width: 0;
 }
 
 .app-header {
@@ -97,6 +98,7 @@ body {
 .chat-container {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 1.5rem;
     display: flex;
     flex-direction: column;
@@ -120,6 +122,7 @@ body {
     display: flex;
     flex-direction: column;
     max-width: 85%;
+    min-width: 0;
     animation: fadeIn 0.3s ease-out forwards;
 }
 
@@ -142,6 +145,8 @@ body {
     font-size: 0.95rem;
     line-height: 1.4;
     word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .message-bubble pre {
@@ -192,6 +197,17 @@ body {
     font-size: 0.85em;
     color: inherit;
     border: none;
+}
+
+.markdown-body img {
+    max-width: 100%;
+    height: auto;
+}
+
+.markdown-body table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
 }
 
 .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6 {
