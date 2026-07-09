@@ -19,36 +19,6 @@ def init_user_storage(username: str):
     os.makedirs(os.path.join(user_dir, "sessions"), exist_ok=True)
     os.makedirs(os.path.join(user_dir, "data"), exist_ok=True)
 
-def save_entry(username: str, entry_type: str, raw_input: str, structured_data: dict) -> str:
-    """
-    Saves an entry (meal or symptom) to a JSON file.
-    Groups by YYYY-MM folder and prefixes filename with ISO timestamp.
-    """
-    now = datetime.now(timezone.utc)
-    month_dir = now.strftime("%Y-%m")
-    timestamp_str = now.strftime("%Y-%m-%dT%H%M%SZ")
-    
-    # Create the month directory for the user
-    target_dir = os.path.join(DATA_DIR, username, month_dir)
-    os.makedirs(target_dir, exist_ok=True)
-    
-    # Construct filename
-    filename = f"{timestamp_str}_{entry_type}.json"
-    filepath = os.path.join(target_dir, filename)
-    
-    # Prepare data payload
-    payload = {
-        "type": entry_type,
-        "timestamp": now.isoformat(),
-        "raw_input": raw_input,
-        "data": structured_data
-    }
-    
-    # Write to file
-    with open(filepath, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2, ensure_ascii=False)
-        
-    return filepath
 
 # --- Session Management ---
 

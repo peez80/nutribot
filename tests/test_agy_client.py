@@ -51,17 +51,13 @@ def test_get_login_url_success(mock_popen, client):
 
 @patch("app.agy_client.subprocess.run")
 def test_process_message_success(mock_run, client):
-    # Mock a successful run returning valid JSON
     expected_response = {
-        "type": "meal",
-        "data": {"food": "Apfel"},
         "reply": "Apfel notiert!",
         "context_truncated": False
     }
     
-    # Sometimes it wraps in markdown
     mock_run.return_value = MagicMock(
-        stdout=f"```json\n{json.dumps(expected_response)}\n```\n",
+        stdout="Apfel notiert!\n",
         returncode=0
     )
     
@@ -83,7 +79,7 @@ def test_process_message_success(mock_run, client):
 @patch("app.agy_client.subprocess.run")
 def test_process_message_with_multiple_images(mock_run, client):
     mock_run.return_value = MagicMock(
-        stdout=json.dumps({"type": "meal", "data": {}, "reply": "ok"}),
+        stdout="ok\n",
         returncode=0
     )
     
@@ -97,26 +93,11 @@ def test_process_message_with_multiple_images(mock_run, client):
     assert "/tmp/image1.jpg" in prompt_arg
     assert "/tmp/image2.jpg" in prompt_arg
 
-@patch("app.agy_client.subprocess.run")
-def test_process_message_json_error(mock_run, client):
-    # Mock CLI returning garbage instead of JSON
-    mock_run.return_value = MagicMock(
-        stdout="Something went wrong",
-        returncode=0
-    )
-    
-    result = client.process_message([], "Test")
-    
-    assert result["type"] == "unknown"
-    assert "Something went wrong" in result["data"]["raw_output"]
-
 @patch("app.agy_client.time.sleep")
 @patch("app.agy_client.subprocess.run")
 def test_process_message_retry_success(mock_run, mock_sleep, client):
     # Mock CLI failing twice, then succeeding
     expected_response = {
-        "type": "meal",
-        "data": {"food": "Apfel"},
         "reply": "Apfel notiert!",
         "context_truncated": False
     }
@@ -124,7 +105,7 @@ def test_process_message_retry_success(mock_run, mock_sleep, client):
     mock_run.side_effect = [
         subprocess.CalledProcessError(1, ["agy"], stderr="error 1"),
         subprocess.CalledProcessError(1, ["agy"], stderr="error 2"),
-        MagicMock(stdout=f"```json\n{json.dumps(expected_response)}\n```\n", returncode=0)
+        MagicMock(stdout="Apfel notiert!\n", returncode=0)
     ]
     
     result = client.process_message([], "Ein Apfel.")
@@ -143,7 +124,6 @@ def test_process_message_retry_failure(mock_run, mock_sleep, client):
     
     result = client.process_message([], "Ein Apfel.")
     
-    assert result["type"] == "error"
     assert "nach 5 erfolglosen Versuchen" in result["reply"]
     assert mock_run.call_count == 6
     assert mock_sleep.call_count == 5

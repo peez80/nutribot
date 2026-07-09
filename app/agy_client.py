@@ -121,15 +121,7 @@ class AgyClient:
     def process_message(self, context_messages: list, new_message: str, image_paths: list = None, system_prompt: str = None) -> dict:
         """
         Calls the `agy` CLI with the provided context, new message, and optional image.
-        Returns a dictionary representing the structured data extracted by the AI,
-        along with a friendly response.
-        
-        Expected output from `agy` (mocked format):
-        {
-            "type": "meal", # or "symptom"
-            "data": {...},
-            "reply": "Das habe ich notiert!"
-        }
+        Returns a dictionary containing the AI's response text.
         """
         context_truncated = False
         MAX_CMD_LENGTH = 1500000 # 1.5M chars safe limit for Linux ARG_MAX
@@ -152,8 +144,6 @@ class AgyClient:
             if image_paths:
                 prompt += f"\nBitte berücksichtige für deine Analyse auch diese Bilder: {', '.join(image_paths)}\n"
                 
-            # We need to instruct agy to output JSON so we can parse it
-            prompt += "\nPlease analyze this and output valid JSON containing 'type' (meal/symptom), 'data' (extracted info), and 'reply' (a friendly message to the user)."
 
             if len(prompt) > MAX_CMD_LENGTH and len(context_messages) > 0:
                 context_messages.pop(0)
@@ -173,34 +163,16 @@ class AgyClient:
                 
                 output = result.stdout.strip()
                 
-                # Basic attempt to parse the JSON from output
-                try:
-                    # If agy wraps JSON in markdown blocks, we might need to strip them
-                    if output.startswith("```json"):
-                        output = output.replace("```json", "", 1)
-                    if output.endswith("```"):
-                        output = output[::-1].replace("```", "", 1)[::-1]
-                    
-                    parsed_data = json.loads(output.strip())
-                    parsed_data["context_truncated"] = context_truncated
-                    return parsed_data
-                except json.JSONDecodeError:
-                    logger.error(f"Failed to parse JSON from agy: {output}")
-                    return {
-                        "type": "unknown",
-                        "data": {"raw_output": output},
-                        "reply": "Ich konnte die Daten nicht verarbeiten, aber ich habe es mir gemerkt.",
-                        "context_truncated": context_truncated
-                    }
+                return {
+                    "reply": output,
+                    "context_truncated": context_truncated
+                }
                     
             except FileNotFoundError:
                 # Mock response for local development when agy is missing
                 logger.warning("agy executable not found. Returning mock data.")
-                is_symptom = "schmerz" in new_message.lower() or "übel" in new_message.lower()
                 return {
-                    "type": "symptom" if is_symptom else "meal",
-                    "data": {"mocked": True, "note": "This is mock data because agy was not found."},
-                    "reply": "Das habe ich als Symptom erfasst." if is_symptom else "Das Essen wurde notiert!",
+                    "reply": "Das ist eine Mock-Antwort, da agy nicht gefunden wurde.",
                     "context_truncated": context_truncated
                 }
             except subprocess.CalledProcessError as e:
@@ -211,8 +183,6 @@ class AgyClient:
                 else:
                     logger.error(f"agy command failed with code {e.returncode}: {e.stderr} after {MAX_RETRIES} retries.")
                     return {
-                        "type": "error",
-                        "data": {},
                         "reply": f"Entschuldigung, es gab einen internen Fehler bei der Verarbeitung nach {MAX_RETRIES} erfolglosen Versuchen.",
                         "context_truncated": context_truncated
                     }

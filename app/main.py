@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from .agy_client import agy_client
 from .storage import (
-    init_storage, save_entry, DATA_DIR,
+    init_storage, DATA_DIR,
     create_session, get_sessions, get_session_history,
     save_session_message, update_session_title, delete_session,
     get_session_prompt, update_session_prompt, init_user_storage
@@ -230,21 +230,14 @@ async def chat_endpoint(
     
     parsed_response = agy_client.process_message(history, message, image_paths, combined_prompt)
         
-    # Extract data
-    entry_type = parsed_response.get("type", "unknown")
-    extracted_data = parsed_response.get("data", {})
     ai_reply = parsed_response.get("reply", "Entschuldigung, ich habe das nicht verstanden.")
     context_truncated = parsed_response.get("context_truncated", False)
     
-    # Save the structured data
-    if entry_type in ["meal", "symptom"]:
-        save_entry(username, entry_type, message, extracted_data)
-        
     # Append AI reply to history
     ai_msg_data = {"text": ai_reply, "is_user": False}
     save_session_message(username, session_id, ai_msg_data)
     
-    return JSONResponse(content={"reply": ai_reply, "parsed": parsed_response, "context_truncated": context_truncated})
+    return JSONResponse(content={"reply": ai_reply, "context_truncated": context_truncated})
 
 # Secure Downloads Endpoint for AI Generated files
 @app.get("/app/data/{username}/data/{file_path:path}")

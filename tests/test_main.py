@@ -66,13 +66,12 @@ def test_get_history_endpoint(mock_history):
     mock_history.assert_called_once_with("testuser", "sess-123")
 
 @patch("app.main.agy_client")
-@patch("app.main.save_entry")
 @patch("app.main.get_session_history")
 @patch("app.main.save_session_message")
 @patch("app.main.get_sessions")
 @patch("app.main.update_session_title")
 @patch("app.main.get_session_prompt")
-def test_chat_endpoint_text_only(mock_get_prompt, mock_update_title, mock_get_sessions, mock_save_msg, mock_get_history, mock_save_entry, mock_agy_client):
+def test_chat_endpoint_text_only(mock_get_prompt, mock_update_title, mock_get_sessions, mock_save_msg, mock_get_history, mock_agy_client):
     mock_auth()
     mock_get_history.return_value = []
     mock_get_prompt.return_value = "Test prompt"
@@ -80,8 +79,6 @@ def test_chat_endpoint_text_only(mock_get_prompt, mock_update_title, mock_get_se
     mock_get_sessions.return_value = [{"id": "sess-123", "title": "Neuer Chat"}]
     
     mock_response = {
-        "type": "meal",
-        "data": {"food": "Pizza"},
         "reply": "Pizza wurde erfasst.",
         "context_truncated": False
     }
@@ -92,10 +89,6 @@ def test_chat_endpoint_text_only(mock_get_prompt, mock_update_title, mock_get_se
     assert response.status_code == 200
     json_resp = response.json()
     assert json_resp["reply"] == "Pizza wurde erfasst."
-    assert json_resp["parsed"]["type"] == "meal"
-    
-    # Verify save_entry was called
-    mock_save_entry.assert_called_once_with("testuser", "meal", "Ich habe Pizza gegessen", {"food": "Pizza"})
     
     # Verify agy_client was called
     mock_agy_client.process_message.assert_called_once()
