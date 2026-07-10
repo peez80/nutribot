@@ -241,11 +241,15 @@ document.addEventListener("DOMContentLoaded", () => {
             const promptRes = await fetch(`/api/sessions/${sessionId}/prompt`);
             if (promptRes.ok) {
                 const promptData = await promptRes.json();
-                systemPromptInput.value = promptData.prompt || "";
+                if (currentSessionId === sessionId) {
+                    systemPromptInput.value = promptData.prompt || "";
+                }
             }
 
             const response = await fetch(`/api/sessions/${sessionId}/history`);
             const history = await response.json();
+            
+            if (currentSessionId !== sessionId) return;
             
             chatContainer.innerHTML = '';
             if (history && history.length > 0) {
@@ -264,8 +268,11 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const res = await fetch("/api/sessions", { method: "POST" });
             const data = await res.json();
+            
+            currentSessionId = data.id;
+            localStorage.setItem("currentSessionId", data.id);
+            
             await loadSessions();
-            selectSession(data.id);
         } catch (err) {
             console.error("Error creating session", err);
         }
@@ -392,15 +399,20 @@ document.addEventListener("DOMContentLoaded", () => {
         
         showTypingIndicator();
         contextWarning.style.display = "none";
+        
+        const submittedSessionId = currentSessionId;
 
         try {
-            const response = await fetch(`/api/sessions/${currentSessionId}/chat`, {
+            const response = await fetch(`/api/sessions/${submittedSessionId}/chat`, {
                 method: "POST",
                 body: formData
             });
             const data = await response.json();
             
             removeTypingIndicator();
+            
+            if (currentSessionId !== submittedSessionId) return;
+            
             appendMessage(data.reply, false, [], data.timestamp);
             
             if (data.context_truncated) {
