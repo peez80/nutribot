@@ -1,6 +1,7 @@
 import os
 import json
 import uuid
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import FastAPI, UploadFile, File, Form, Request, Response, HTTPException, Depends
@@ -82,6 +83,7 @@ class ChatMessage(BaseModel):
     text: str
     is_user: bool
     image_urls: List[str] = []
+    timestamp: Optional[str] = None
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_index():
@@ -218,7 +220,8 @@ async def chat_endpoint(
     user_msg_data = {
         "text": display_msg, 
         "is_user": True,
-        "image_urls": image_urls
+        "image_urls": image_urls,
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
     save_session_message(username, session_id, user_msg_data)
 
@@ -243,10 +246,18 @@ async def chat_endpoint(
     context_truncated = parsed_response.get("context_truncated", False)
     
     # Append AI reply to history
-    ai_msg_data = {"text": ai_reply, "is_user": False}
+    ai_msg_data = {
+        "text": ai_reply, 
+        "is_user": False,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
     save_session_message(username, session_id, ai_msg_data)
     
-    return JSONResponse(content={"reply": ai_reply, "context_truncated": context_truncated})
+    return JSONResponse(content={
+        "reply": ai_reply, 
+        "context_truncated": context_truncated,
+        "timestamp": ai_msg_data["timestamp"]
+    })
 
 # Secure Downloads Endpoint for AI Generated files
 @app.get("/app/data/{username}/data/{file_path:path}")

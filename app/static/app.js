@@ -53,9 +53,17 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     // Append a message to the chat
-    const appendMessage = (text, isUser, imageUrls = []) => {
+    const appendMessage = (text, isUser, imageUrls = [], timestampStr = null) => {
         const msgDiv = document.createElement("div");
         msgDiv.className = `message ${isUser ? "user-message" : "ai-message"}`;
+        
+        if (timestampStr) {
+            const timeDiv = document.createElement("div");
+            timeDiv.className = "message-timestamp";
+            const date = new Date(timestampStr);
+            timeDiv.textContent = date.toLocaleDateString() + ', ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) + ' Uhr';
+            msgDiv.appendChild(timeDiv);
+        }
         
         const bubble = document.createElement("div");
         bubble.className = "message-bubble";
@@ -242,7 +250,7 @@ document.addEventListener("DOMContentLoaded", () => {
             chatContainer.innerHTML = '';
             if (history && history.length > 0) {
                 history.forEach(msg => {
-                    appendMessage(msg.text, msg.is_user, msg.image_urls || []);
+                    appendMessage(msg.text, msg.is_user, msg.image_urls || [], msg.timestamp);
                 });
             } else {
                 showInitialGreeting();
@@ -367,7 +375,8 @@ document.addEventListener("DOMContentLoaded", () => {
             chatContainer.innerHTML = '';
         }
 
-        appendMessage(displayMsg, true, localImageUrls);
+        const now = new Date().toISOString();
+        appendMessage(displayMsg, true, localImageUrls, now);
 
         // Prepare form data
         const formData = new FormData();
@@ -392,7 +401,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await response.json();
             
             removeTypingIndicator();
-            appendMessage(data.reply, false);
+            appendMessage(data.reply, false, [], data.timestamp);
             
             if (data.context_truncated) {
                 contextWarning.style.display = "flex";
