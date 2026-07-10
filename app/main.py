@@ -1,6 +1,8 @@
 import os
 import json
 import uuid
+import re
+import urllib.parse
 from datetime import datetime, timezone
 from typing import List, Optional
 
@@ -231,7 +233,7 @@ async def chat_endpoint(
     
     session_prompt = get_session_prompt(username, session_id)
     
-    technical_prompt = "TECHNISCHE VORAUSSETZUNG: Speichere und lese lokale Dateien immer nur im aktuellen Arbeitsverzeichnis (.). Du darfst dieses Verzeichnis nicht verlassen (keine ../ Pfade) und auf keine anderen Systemdateien zugreifen."
+    technical_prompt = "TECHNISCHE VORAUSSETZUNG: Speichere und lese lokale Dateien immer nur im aktuellen Arbeitsverzeichnis (.). Du darfst dieses Verzeichnis nicht verlassen (keine ../ Pfade) und auf keine anderen Systemdateien zugreifen. Erstelle für generierte Dateien IMMER einen Markdown-Link in der Antwort im Format: [Dateiname](Dateiname)."
     combined_prompt = f"{technical_prompt}\n\n{session_prompt}" if session_prompt else technical_prompt
     
     parsed_response = agy_client.process_message(
@@ -245,6 +247,43 @@ async def chat_endpoint(
     ai_reply = parsed_response.get("reply", "Entschuldigung, ich habe das nicht verstanden.")
     context_truncated = parsed_response.get("context_truncated", False)
     
+    # --- Fix local file links ---
+    def rescue_file_links(match):
+        text = match.group(1)
+        href = match.group(2)
+        
+        path_to_check = None
+        if href.startswith("file://"):
+            path_to_check = href[len("file://"):]
+        elif href.startswith("/root/.gemini/antigravity-cli/"):
+            path_to_check = href
+            
+        if path_to_check and path_to_check.startswith("/root/.gemini/antigravity-cli/"):
+            if os.path.isfile(path_to_check):
+                filename = os.path.basename(path_to_check)
+                dest_path = os.path.join(user_data_dir, filename)
+                try:
+                    import shutil
+                    if os.path.abspath(path_to_check) != os.path.abspath(dest_path):
+                        shutil.copy2(path_to_check, dest_path)
+                    return f"[{text}]({filename})"
+                except Exception:
+                    pass
+        return match.group(0)
+
+    ai_reply = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', rescue_file_links, ai_reply)
+
+    def replace_local_links(match):
+        text = match.group(1)
+        href = match.group(2)
+        if not href.startswith(("http", "/", "data:", "#", "mailto:", "file:")):
+            encoded_href = urllib.parse.quote(href, safe='/')
+            return f"[{text}](/app/data/{username}/data/{encoded_href})"
+        return match.group(0)
+        
+    ai_reply = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', replace_local_links, ai_reply)
+    # --- End fix ---
+
     # Append AI reply to history
     ai_msg_data = {
         "text": ai_reply, 
@@ -264,7 +303,16 @@ async def chat_endpoint(
 async def download_file(username: str, file_path: str, current_user: str = Depends(get_current_user)):
     if username != current_user:
         raise HTTPException(status_code=403, detail="Forbidden")
-        
+    # --- Fallback for old history with scratch paths ---
+    if file_path.startswith("file:///root/.gemini/antigravity-cli/"):
+        real_path = file_path[len("file://"):]
+        if os.path.isfile(real_path):
+            return FileResponse(real_path, filename=os.path.basename(real_path))
+    elif file_path.startswith("/root/.gemini/antigravity-cli/"):
+        if os.path.isfile(file_path):
+            return FileResponse(file_path, filename=os.path.basename(file_path))
+    # --- End Fallback ---
+            
     base_dir = os.path.abspath(os.path.join(DATA_DIR, username, "data"))
     full_path = os.path.abspath(os.path.join(base_dir, file_path))
     

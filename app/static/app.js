@@ -56,21 +56,21 @@ document.addEventListener("DOMContentLoaded", () => {
     const appendMessage = (text, isUser, imageUrls = [], timestampStr = null) => {
         const msgDiv = document.createElement("div");
         msgDiv.className = `message ${isUser ? "user-message" : "ai-message"}`;
-        
+
         if (timestampStr) {
             const timeDiv = document.createElement("div");
             timeDiv.className = "message-timestamp";
             const date = new Date(timestampStr);
-            timeDiv.textContent = date.toLocaleDateString() + ', ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) + ' Uhr';
+            timeDiv.textContent = date.toLocaleDateString() + ', ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' Uhr';
             msgDiv.appendChild(timeDiv);
         }
-        
+
         const bubble = document.createElement("div");
         bubble.className = "message-bubble";
-        
+
         if (text) {
             const textDiv = document.createElement("div");
-            
+
             if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
                 const parsedHTML = marked.parse(text);
                 textDiv.innerHTML = DOMPurify.sanitize(parsedHTML);
@@ -78,10 +78,10 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 textDiv.textContent = text;
             }
-            
+
             bubble.appendChild(textDiv);
         }
-        
+
         if (imageUrls && imageUrls.length > 0) {
             const gridDiv = document.createElement("div");
             gridDiv.className = "chat-images-grid";
@@ -94,7 +94,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             bubble.appendChild(gridDiv);
         }
-        
+
         if (!isUser && text) {
             const pathRegex = /\/app\/data\/([a-zA-Z0-9_-]+)\/data\/([^\s"'`<>()*\[\]]+)/g;
             let match;
@@ -106,27 +106,28 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 downloadLinks.push(linkPath);
             }
-            
+
             const uniqueLinks = Array.from(new Set(downloadLinks));
-        
+
             if (uniqueLinks.length > 0) {
                 const downloadContainer = document.createElement("div");
                 downloadContainer.className = "download-links-container";
-                
+
                 uniqueLinks.forEach(linkPath => {
                     const btn = document.createElement("a");
                     btn.href = linkPath;
                     btn.target = "_blank";
-                    btn.download = linkPath.split('/').pop();
+                    const fileName = decodeURIComponent(linkPath.split('/').pop());
+                    btn.download = fileName;
                     btn.className = "download-btn";
-                    btn.innerHTML = `<i class="ph-bold ph-download-simple"></i> ${linkPath.split('/').pop()}`;
+                    btn.innerHTML = `<i class="ph-bold ph-download-simple"></i> ${fileName}`;
                     downloadContainer.appendChild(btn);
                 });
-                
+
                 bubble.appendChild(downloadContainer);
             }
         }
-        
+
         msgDiv.appendChild(bubble);
         chatContainer.appendChild(msgDiv);
         scrollToBottom();
@@ -137,7 +138,7 @@ document.addEventListener("DOMContentLoaded", () => {
         chatContainer.innerHTML = '';
         const msgDiv = document.createElement("div");
         msgDiv.className = "message ai-message";
-        msgDiv.innerHTML = `<div class="message-bubble">Hallo! Was hast du heute gegessen oder wie fühlst du dich?</div>`;
+        msgDiv.innerHTML = `<div class="message-bubble">Hallo, wie geht es dir heute?</div>`;
         chatContainer.appendChild(msgDiv);
     };
 
@@ -146,11 +147,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const typingDiv = document.createElement("div");
         typingDiv.className = "message ai-message typing-container";
         typingDiv.id = "typing-indicator";
-        
+
         const bubble = document.createElement("div");
         bubble.className = "message-bubble typing-indicator";
         bubble.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
-        
+
         typingDiv.appendChild(bubble);
         chatContainer.appendChild(typingDiv);
         scrollToBottom();
@@ -174,10 +175,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 reader.onload = (event) => {
                     const itemDiv = document.createElement("div");
                     itemDiv.className = "preview-item";
-                    
+
                     const img = document.createElement("img");
                     img.src = event.target.result;
-                    
+
                     const btn = document.createElement("button");
                     btn.type = "button";
                     btn.className = "remove-image-btn";
@@ -187,7 +188,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         selectedImageFiles.splice(index, 1);
                         updatePreviewUI();
                     };
-                    
+
                     itemDiv.appendChild(img);
                     itemDiv.appendChild(btn);
                     imagePreviewContainer.appendChild(itemDiv);
@@ -203,14 +204,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const handleImageSelection = (e, otherInputToClear) => {
         if (e.target.files && e.target.files.length > 0) {
             const newFiles = Array.from(e.target.files);
-            
+
             if (selectedImageFiles.length + newFiles.length > 5) {
                 alert("Du kannst maximal 5 Bilder auf einmal senden.");
             } else {
                 selectedImageFiles = [...selectedImageFiles, ...newFiles];
             }
-            
-            otherInputToClear.value = ""; 
+
+            otherInputToClear.value = "";
             e.target.value = "";
             updatePreviewUI();
             messageInput.focus();
@@ -227,7 +228,7 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.setItem("currentSessionId", sessionId);
         contextWarning.style.display = "none";
         renderSessionList(window.lastSessions || []);
-        
+
         // Hide sidebar on mobile after selection
         if (window.innerWidth <= 768) {
             sidebar.classList.remove("open");
@@ -248,9 +249,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const response = await fetch(`/api/sessions/${sessionId}/history`);
             const history = await response.json();
-            
+
             if (currentSessionId !== sessionId) return;
-            
+
             chatContainer.innerHTML = '';
             if (history && history.length > 0) {
                 history.forEach(msg => {
@@ -268,10 +269,10 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const res = await fetch("/api/sessions", { method: "POST" });
             const data = await res.json();
-            
+
             currentSessionId = data.id;
             localStorage.setItem("currentSessionId", data.id);
-            
+
             await loadSessions();
         } catch (err) {
             console.error("Error creating session", err);
@@ -286,12 +287,12 @@ document.addEventListener("DOMContentLoaded", () => {
         sessions.forEach(session => {
             const div = document.createElement("div");
             div.className = `session-item ${session.id === currentSessionId ? "active" : ""}`;
-            
+
             // Format date slightly
             let dateStr = session.created_at;
             if (dateStr) {
                 const d = new Date(dateStr);
-                dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             }
 
             div.innerHTML = `
@@ -303,10 +304,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     <i class="ph-bold ph-trash"></i>
                 </button>
             `;
-            
+
             // Handle session selection
             div.addEventListener("click", () => selectSession(session.id));
-            
+
             // Handle deletion
             const deleteBtn = div.querySelector('.delete-btn');
             deleteBtn.addEventListener('click', async (e) => {
@@ -338,7 +339,7 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const res = await fetch("/api/sessions");
             const sessions = await res.json();
-            
+
             if (!sessions || sessions.length === 0) {
                 await createNewSession();
                 return;
@@ -360,7 +361,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Handle form submission
     chatForm.addEventListener("submit", async (e) => {
         e.preventDefault();
-        
+
         if (!currentSessionId) {
             alert("Fehler: Keine aktive Sitzung.");
             return;
@@ -376,7 +377,7 @@ document.addEventListener("DOMContentLoaded", () => {
             displayMsg += displayMsg ? ` [${selectedImageFiles.length} Bild(er) angehängt]` : `[${selectedImageFiles.length} Bild(er) gesendet]`;
             localImageUrls = selectedImageFiles.map(f => URL.createObjectURL(f));
         }
-        
+
         // Remove initial greeting if it's the first message
         if (chatContainer.children.length === 1 && chatContainer.firstElementChild.innerText.includes("Hallo! Was hast du heute gegessen")) {
             chatContainer.innerHTML = '';
@@ -396,10 +397,10 @@ document.addEventListener("DOMContentLoaded", () => {
         messageInput.value = "";
         selectedImageFiles = [];
         updatePreviewUI();
-        
+
         showTypingIndicator();
         contextWarning.style.display = "none";
-        
+
         const submittedSessionId = currentSessionId;
 
         try {
@@ -408,22 +409,22 @@ document.addEventListener("DOMContentLoaded", () => {
                 body: formData
             });
             const data = await response.json();
-            
+
             removeTypingIndicator();
-            
+
             if (currentSessionId !== submittedSessionId) return;
-            
+
             appendMessage(data.reply, false, [], data.timestamp);
-            
+
             if (data.context_truncated) {
                 contextWarning.style.display = "flex";
             }
-            
+
             // Reload sessions in case the title changed
             const sessionsRes = await fetch("/api/sessions");
             const sessionsData = await sessionsRes.json();
             renderSessionList(sessionsData);
-            
+
         } catch (error) {
             removeTypingIndicator();
             appendMessage("Es gab einen Verbindungsfehler. Bitte versuche es später noch einmal.", false);
@@ -472,7 +473,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- Global 401 Handler ---
     const originalFetch = window.fetch;
-    window.fetch = async function(...args) {
+    window.fetch = async function (...args) {
         const response = await originalFetch.apply(this, args);
         if (response.status === 401 && !args[0].includes('/api/auth/status') && !args[0].includes('/api/auth/login')) {
             handleAuthError();
@@ -536,7 +537,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 headers: { "Content-Type": "application/x-www-form-urlencoded" },
                 body: formData.toString()
             });
-            
+
             if (res.ok) {
                 const data = await res.json();
                 if (data.success) {

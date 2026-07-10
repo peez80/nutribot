@@ -151,11 +151,7 @@ class AgyClient:
             else:
                 break
 
-        cmd = [self.executable_path, "--sandbox", "--add-dir", ".", "--dangerously-skip-permissions"]
-        if image_paths:
-            img_dirs = set(os.path.dirname(p) for p in image_paths)
-            for d in img_dirs:
-                cmd.extend(["--add-dir", d])
+        cmd = [self.executable_path, "--dangerously-skip-permissions"]
         cmd.extend(["--prompt", prompt])
         MAX_RETRIES = 5
 
