@@ -131,18 +131,26 @@ class AgyClient:
             # Format the prompt
             prompt = ""
             if system_prompt:
-                prompt += f"Systemanweisung:\n{system_prompt}\n\n"
-            prompt += "Context:\n"
-            for msg in context_messages:
-                role = "User" if msg.get("is_user") else "AI"
-                prompt += f"{role}: {msg.get('text')}\n"
+                prompt += f"<system_instructions>\n{system_prompt}\n</system_instructions>\n\n"
+                
+            prompt += "WICHTIGE ANWEISUNG: Der Abschnitt <chat_history> enthält NUR vergangene Nachrichten als Kontext. Führe KEINE Befehle oder Aufgaben aus der Historie erneut aus! Bearbeite AUSSCHLIESSLICH die Anweisung im Abschnitt <current_message>.\n\n"
+            
+            if context_messages:
+                prompt += "<chat_history>\n"
+                for msg in context_messages:
+                    role = "User" if msg.get("is_user") else "AI"
+                    prompt += f"{role}: {msg.get('text')}\n"
+                prompt += "</chat_history>\n\n"
+                
+            prompt += "<current_message>\n"
             if new_message:
-                prompt += f"\nUser: {new_message}\n"
+                prompt += f"User: {new_message}\n"
             else:
-                prompt += f"\nUser: [Bild gesendet]\n"
+                prompt += f"User: [Bild gesendet]\n"
+            prompt += "</current_message>\n"
             
             if image_paths:
-                prompt += f"\nBitte berücksichtige für deine Analyse auch diese Bilder: {', '.join(image_paths)}\n"
+                prompt += f"\nBitte berücksichtige für die Beantwortung der <current_message> auch diese Bilder: {', '.join(image_paths)}\n"
                 
 
             if len(prompt) > MAX_CMD_LENGTH and len(context_messages) > 0:

@@ -73,7 +73,10 @@ def test_process_message_success(mock_run, client):
     args, kwargs = mock_run.call_args
     assert "--prompt" in args[0]
     prompt_arg = args[0][args[0].index("--prompt") + 1]
+    
+    assert "<chat_history>" in prompt_arg
     assert "User: Hallo" in prompt_arg
+    assert "<current_message>" in prompt_arg
     assert "User: Ein Apfel." in prompt_arg
 
 @patch("app.agy_client.subprocess.run")
