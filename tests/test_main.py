@@ -59,10 +59,10 @@ def test_get_sessions_endpoint(mock_get):
 @patch("app.main.get_session_history")
 def test_get_history_endpoint(mock_history):
     mock_auth()
-    mock_history.return_value = [{"text": "Hi", "is_user": True, "image_urls": []}]
+    mock_history.return_value = [{"text": "Hi", "is_user": True, "image_urls": [], "timestamp": None}]
     response = client.get("/api/sessions/sess-123/history")
     assert response.status_code == 200
-    assert response.json() == [{"text": "Hi", "is_user": True, "image_urls": []}]
+    assert response.json() == [{"text": "Hi", "is_user": True, "image_urls": [], "timestamp": None}]
     mock_history.assert_called_once_with("testuser", "sess-123")
 
 @patch("app.main.agy_client")
