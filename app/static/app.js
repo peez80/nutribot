@@ -76,7 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
                 const parsedHTML = marked.parse(text);
-                textDiv.innerHTML = DOMPurify.sanitize(parsedHTML);
+                textDiv.innerHTML = DOMPurify.sanitize(parsedHTML, { ADD_TAGS: ['details', 'summary'], ADD_ATTR: ['class'] });
                 textDiv.className = "markdown-body";
             } else {
                 textDiv.textContent = text;

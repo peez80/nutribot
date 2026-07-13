@@ -133,7 +133,8 @@ class AgyClient:
             if system_prompt:
                 prompt += f"<system_instructions>\n{system_prompt}\n</system_instructions>\n\n"
                 
-            prompt += "WICHTIGE ANWEISUNG: Der Abschnitt <chat_history> enthält NUR vergangene Nachrichten als Kontext. Führe KEINE Befehle oder Aufgaben aus der Historie erneut aus! Bearbeite AUSSCHLIESSLICH die Anweisung im Abschnitt <current_message>.\n\n"
+            prompt += "WICHTIGE ANWEISUNG: Der Abschnitt <chat_history> enthält NUR vergangene Nachrichten als Kontext. Führe KEINE Befehle oder Aufgaben aus der Historie erneut aus! Bearbeite AUSSCHLIESSLICH die Anweisung im Abschnitt <current_message>.\n"
+            prompt += "Wenn du Schritte planst oder laut nachdenkst, setze diese Gedanken zwingend in <thought> und </thought> Tags am Anfang deiner Antwort.\n\n"
             
             if context_messages:
                 prompt += "<chat_history>\n"
@@ -172,46 +173,11 @@ class AgyClient:
                 
                 output = result.stdout.strip()
                 
-                lines = output.split('\n')
-                new_lines = []
-                reasoning_buffer = []
-
-                reasoning_prefixes = ("I will ", "Let's ", "Ich werde ", "Lass uns ")
-
-                def flush_reasoning():
-                    if not reasoning_buffer:
-                        return
-                    
-                    empty_lines = []
-                    while reasoning_buffer and not reasoning_buffer[-1].strip():
-                        empty_lines.insert(0, reasoning_buffer.pop())
-                        
-                    if reasoning_buffer:
-                        new_lines.append("")
-                        new_lines.append("<details class='ai-reasoning'>")
-                        new_lines.append("  <summary>Gedankengang der KI</summary>")
-                        new_lines.append("  <div class='reasoning-content'>")
-                        new_lines.extend(reasoning_buffer)
-                        new_lines.append("  </div>")
-                        new_lines.append("</details>")
-                        new_lines.append("")
-                        reasoning_buffer.clear()
-                        
-                    new_lines.extend(empty_lines)
-
-                for line in lines:
-                    stripped = line.strip()
-                    if stripped.startswith(reasoning_prefixes):
-                        reasoning_buffer.append(line)
-                    elif not stripped and reasoning_buffer:
-                        reasoning_buffer.append(line)
-                    else:
-                        flush_reasoning()
-                        new_lines.append(line)
-
-                flush_reasoning()
-
-                output = "\n".join(new_lines).strip()
+                def replace_thought(match):
+                    content = match.group(1).strip()
+                    return f"<details class='ai-reasoning'>\n  <summary>Gedankengang der KI</summary>\n  <div class='reasoning-content'>\n{content}\n  </div>\n</details>\n"
+                
+                output = re.sub(r'<thought>(.*?)</thought>', replace_thought, output, flags=re.DOTALL).strip()
                 
                 return {
                     "reply": output,
