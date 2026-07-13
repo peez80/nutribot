@@ -190,7 +190,7 @@ async def chat_endpoint(
     
     if valid_images:
         # Ensure uploads dir exists for user
-        user_uploads_dir = os.path.join(DATA_DIR, username, "uploads")
+        user_uploads_dir = os.path.join(DATA_DIR, username, "sessions", session_id, "uploads")
         os.makedirs(user_uploads_dir, exist_ok=True)
         
         for img in valid_images:
@@ -204,7 +204,7 @@ async def chat_endpoint(
                 f.write(contents)
                 
             image_paths.append(img_path)
-            image_urls.append(f"/uploads/{filename}")
+            image_urls.append(f"/uploads/{session_id}/{filename}")
             
         if not display_msg:
             display_msg = f"[{len(valid_images)} Bild(er) gesendet]"
@@ -228,12 +228,18 @@ async def chat_endpoint(
     save_session_message(username, session_id, user_msg_data)
 
     # Process via agy with FULL context
-    user_data_dir = os.path.abspath(os.path.join(DATA_DIR, username, "data"))
+    user_data_dir = os.path.abspath(os.path.join(DATA_DIR, username, "sessions", session_id, "data"))
     os.makedirs(user_data_dir, exist_ok=True)
     
     session_prompt = get_session_prompt(username, session_id)
     
-    technical_prompt = "TECHNISCHE VORAUSSETZUNG: Speichere und lese lokale Dateien immer nur im aktuellen Arbeitsverzeichnis (.). Du darfst dieses Verzeichnis nicht verlassen (keine ../ Pfade) und auf keine anderen Systemdateien zugreifen. Erstelle für generierte Dateien IMMER einen Markdown-Link in der Antwort im Format: [Dateiname](Dateiname)."
+    technical_prompt = (
+        f"TECHNISCHE VORAUSSETZUNG: Dein persistentes Datenverzeichnis lautet: {user_data_dir}\n"
+        "Speichere und lese generierte Dateien IMMER in diesem absoluten Verzeichnis. "
+        "Verwende in generierten Skripten (z.B. Python) zwingend diesen absoluten Pfad. "
+        "Erstelle für alle generierten Dateien einen Markdown-Link in der Antwort. "
+        "Nutze als Link-Ziel AUSSCHLIESSLICH den reinen Dateinamen ohne Pfade, z.B. [Dateiname.pdf](Dateiname.pdf)."
+    )
     combined_prompt = f"{technical_prompt}\n\n{session_prompt}" if session_prompt else technical_prompt
     
     parsed_response = agy_client.process_message(
@@ -248,39 +254,35 @@ async def chat_endpoint(
     context_truncated = parsed_response.get("context_truncated", False)
     
     # --- Fix local file links ---
-    def rescue_file_links(match):
-        text = match.group(1)
-        href = match.group(2)
-        
-        path_to_check = None
-        if href.startswith("file://"):
-            path_to_check = href[len("file://"):]
-        elif href.startswith("/root/.gemini/antigravity-cli/"):
-            path_to_check = href
-            
-        if path_to_check and path_to_check.startswith("/root/.gemini/antigravity-cli/"):
-            if os.path.isfile(path_to_check):
-                filename = os.path.basename(path_to_check)
-                dest_path = os.path.join(user_data_dir, filename)
-                try:
-                    import shutil
-                    if os.path.abspath(path_to_check) != os.path.abspath(dest_path):
-                        shutil.copy2(path_to_check, dest_path)
-                    return f"[{text}]({filename})"
-                except Exception:
-                    pass
-        return match.group(0)
-
-    ai_reply = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', rescue_file_links, ai_reply)
-
     def replace_local_links(match):
         text = match.group(1)
         href = match.group(2)
-        if not href.startswith(("http", "/", "data:", "#", "mailto:", "file:")):
-            encoded_href = urllib.parse.quote(href, safe='/')
-            return f"[{text}](/app/data/{username}/data/{encoded_href})"
-        return match.group(0)
         
+        # Bereinige file:// Präfixe
+        if href.startswith("file://"):
+            href = href[7:]
+            
+        data_prefix = f"/app/data/{username}/sessions/{session_id}/data/"
+        uploads_prefix = f"/app/data/{username}/sessions/{session_id}/uploads/"
+        
+        # Korrigiere KI-generierte absolute Pfade in die korrekten API-Download-Routen
+        if href.startswith(data_prefix):
+            rel_path = href[len(data_prefix):]
+            encoded = urllib.parse.quote(rel_path, safe='/')
+            return f"[{text}](/app/data/{username}/{session_id}/data/{encoded})"
+            
+        if href.startswith(uploads_prefix):
+            rel_path = href[len(uploads_prefix):]
+            encoded = urllib.parse.quote(rel_path, safe='/')
+            return f"[{text}](/uploads/{session_id}/{encoded})"
+            
+        # Wenn die KI (korrekterweise) nur den Dateinamen zurückgibt
+        if not href.startswith(("http", "/", "data:", "#", "mailto:")):
+            encoded = urllib.parse.quote(href, safe='/')
+            return f"[{text}](/app/data/{username}/{session_id}/data/{encoded})"
+            
+        return match.group(0)
+
     ai_reply = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', replace_local_links, ai_reply)
     # --- End fix ---
 
@@ -299,8 +301,8 @@ async def chat_endpoint(
     })
 
 # Secure Downloads Endpoint for AI Generated files
-@app.get("/app/data/{username}/data/{file_path:path}")
-async def download_file(username: str, file_path: str, current_user: str = Depends(get_current_user)):
+@app.get("/app/data/{username}/{session_id}/data/{file_path:path}")
+async def download_file(username: str, session_id: str, file_path: str, current_user: str = Depends(get_current_user)):
     if username != current_user:
         raise HTTPException(status_code=403, detail="Forbidden")
     # --- Fallback for old history with scratch paths ---
@@ -313,7 +315,8 @@ async def download_file(username: str, file_path: str, current_user: str = Depen
             return FileResponse(file_path, filename=os.path.basename(file_path))
     # --- End Fallback ---
             
-    base_dir = os.path.abspath(os.path.join(DATA_DIR, username, "data"))
+    safe_session_id = os.path.basename(session_id)
+    base_dir = os.path.abspath(os.path.join(DATA_DIR, username, "sessions", safe_session_id, "data"))
     full_path = os.path.abspath(os.path.join(base_dir, file_path))
     
     if not full_path.startswith(base_dir):
@@ -324,10 +327,11 @@ async def download_file(username: str, file_path: str, current_user: str = Depen
     raise HTTPException(status_code=404, detail="File not found")
 
 # Secure Uploads Endpoint
-@app.get("/uploads/{filename}")
-async def get_upload(filename: str, username: str = Depends(get_current_user)):
+@app.get("/uploads/{session_id}/{filename}")
+async def get_upload(session_id: str, filename: str, username: str = Depends(get_current_user)):
     safe_filename = os.path.basename(filename)
-    file_path = os.path.join(DATA_DIR, username, "uploads", safe_filename)
+    safe_session_id = os.path.basename(session_id)
+    file_path = os.path.join(DATA_DIR, username, "sessions", safe_session_id, "uploads", safe_filename)
     if os.path.exists(file_path):
         return FileResponse(file_path)
     raise HTTPException(status_code=404, detail="File not found")

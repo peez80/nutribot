@@ -96,7 +96,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (!isUser && text) {
-            const pathRegex = /\/app\/data\/([a-zA-Z0-9_-]+)\/data\/([^\s"'`<>()*\[\]]+)/g;
+            const pathRegex = /\/app\/data\/([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)\/data\/([^\s"'`<>()*\[\]]+)/g;
             let match;
             const downloadLinks = [];
             while ((match = pathRegex.exec(text)) !== null) {

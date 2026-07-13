@@ -8,10 +8,9 @@ def test_init_user_storage(mock_makedirs):
     from app.storage import init_user_storage
     init_user_storage("testuser")
     
-    # Check that it creates sessions and uploads directories for the user
+    # Check that it creates sessions directory for the user
     calls = [call.args[0] for call in mock_makedirs.call_args_list]
     assert any("testuser" in path and "sessions" in path for path in calls)
-    assert any("testuser" in path and "uploads" in path for path in calls)
 
 
 @patch('app.storage.os.path.exists')
@@ -33,7 +32,8 @@ def test_create_session(mock_file, mock_datetime, mock_uuid, mock_exists):
     assert session_id == "12345"
     mock_file.assert_called_once()
     assert "testuser" in mock_file.call_args[0][0]
-    assert mock_file.call_args[0][0].endswith("session_12345.json")
+    assert "12345" in mock_file.call_args[0][0]
+    assert mock_file.call_args[0][0].endswith("session.json")
     
     handle = mock_file()
     written_data = "".join([call.args[0] for call in handle.write.call_args_list])
@@ -45,13 +45,15 @@ def test_create_session(mock_file, mock_datetime, mock_uuid, mock_exists):
 
 @patch('app.storage.os.path.exists')
 @patch('app.storage.os.listdir')
+@patch('app.storage.os.path.isdir')
 @patch('app.storage.os.path.isfile')
 @patch('builtins.open', new_callable=mock_open)
-def test_get_sessions(mock_file, mock_isfile, mock_listdir, mock_exists):
+def test_get_sessions(mock_file, mock_isfile, mock_isdir, mock_listdir, mock_exists):
     from app.storage import get_sessions
     
     mock_exists.return_value = True
-    mock_listdir.return_value = ["session_1.json", "session_2.json", "other.txt"]
+    mock_listdir.return_value = ["1", "2", "other.txt"]
+    mock_isdir.side_effect = lambda path: path.endswith("1") or path.endswith("2")
     mock_isfile.return_value = True
     
     session1 = json.dumps({"id": "1", "title": "A", "created_at": "2026-07-06T12:00:00+00:00", "history": []})
@@ -138,17 +140,17 @@ def test_update_session_title(mock_exists, mock_file):
     assert loaded_data["title"] == "New Title"
 
 @patch('app.storage.os.path.exists')
-@patch('app.storage.os.remove')
-def test_delete_session(mock_remove, mock_exists):
+@patch('app.storage.shutil.rmtree')
+def test_delete_session(mock_rmtree, mock_exists):
     from app.storage import delete_session
     mock_exists.return_value = True
     
     delete_session("testuser", "123")
     
     mock_exists.assert_called_once()
-    mock_remove.assert_called_once()
-    assert "testuser" in mock_remove.call_args[0][0]
-    assert mock_remove.call_args[0][0].endswith("session_123.json")
+    mock_rmtree.assert_called_once()
+    assert "testuser" in mock_rmtree.call_args[0][0]
+    assert "123" in mock_rmtree.call_args[0][0]
 
 @patch('builtins.open', new_callable=mock_open)
 @patch('app.storage.os.path.exists')

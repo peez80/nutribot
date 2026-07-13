@@ -36,7 +36,7 @@ def test_unauthenticated_access():
     assert client.get("/api/sessions/123/prompt").status_code == 401
     assert client.put("/api/sessions/123/prompt", json={"prompt":"test"}).status_code == 401
     assert client.post("/api/sessions/123/chat", data={"message":"test"}).status_code == 401
-    assert client.get("/uploads/test.jpg").status_code == 401
+    assert client.get("/uploads/123/test.jpg").status_code == 401
 
 @patch("app.main.create_session")
 def test_create_session_endpoint(mock_create):
@@ -140,8 +140,9 @@ def test_uploads_endpoint(mock_exists):
     mock_exists.return_value = True
     with patch("app.main.FileResponse") as mock_fileresponse:
         mock_fileresponse.return_value = MagicMock()
-        response = client.get("/uploads/test.jpg")
+        response = client.get("/uploads/123/test.jpg")
         assert response.status_code == 200
         mock_fileresponse.assert_called_once()
         assert "testuser" in mock_fileresponse.call_args[0][0]
+        assert "123" in mock_fileresponse.call_args[0][0]
         assert mock_fileresponse.call_args[0][0].endswith("test.jpg")
