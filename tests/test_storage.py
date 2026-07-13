@@ -222,3 +222,38 @@ def test_update_session_title(mock_exists, mock_file):
     loaded_data = json.loads(written_data)
     
     assert loaded_data["title"] == "Mein Titel"
+
+@patch('app.storage.os.path.exists')
+@patch('app.storage.uuid.uuid4')
+@patch('builtins.open', new_callable=mock_open)
+def test_session_json_schema(mock_file, mock_uuid, mock_exists):
+    """
+    Stellt sicher, dass die Struktur der session.json bei Änderungen nicht 
+    unbeabsichtigt geändert wird und bestehende Daten inkompatibel werden.
+    """
+    from app.storage import create_session
+    mock_uuid.return_value.hex = "schema-test-id"
+    mock_exists.return_value = True
+    
+    create_session("testuser", "Schema Test Chat")
+    
+    handle = mock_file()
+    written_data = "".join([call.args[0] for call in handle.write.call_args_list])
+    loaded_data = json.loads(written_data)
+    
+    expected_schema = {
+        "id": str,
+        "title": str,
+        "created_at": str,
+        "history": list,
+        "system_prompt": str
+    }
+    
+    # 1. Prüfe, ob alle erwarteten Keys vorhanden sind und den richtigen Typ haben
+    for key, expected_type in expected_schema.items():
+        assert key in loaded_data, f"Fehlender Key in session.json: {key}"
+        assert isinstance(loaded_data[key], expected_type), f"Falscher Typ für {key}: Erwartet {expected_type.__name__}, erhalten {type(loaded_data[key]).__name__}"
+        
+    # 2. Prüfe, ob keine unerwarteten Keys vorhanden sind (Strict Mode)
+    for key in loaded_data.keys():
+        assert key in expected_schema, f"Unerwarteter Key in session.json: {key}. Das Schema hat sich geändert!"
