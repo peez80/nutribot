@@ -10,6 +10,6 @@ services:
       - ~/.gemini/antigravity-cli:/root/.gemini/antigravity-cli
     environment:
       - DATA_DIR=/app/data
-
+      - LOG_LEVEL=DEBUG
 volumes:
   nutrition_data:

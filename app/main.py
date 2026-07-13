@@ -13,6 +13,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from pydantic import BaseModel
 
+import logging
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(level=log_level)
+
 from .agy_client import agy_client
 from .storage import (
     init_storage, DATA_DIR,

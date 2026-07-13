@@ -162,6 +162,13 @@ class AgyClient:
 
         cmd = [self.executable_path, "--dangerously-skip-permissions"]
         cmd.extend(["--prompt", prompt])
+        
+        log_cmd = cmd.copy()
+        if "--prompt" in log_cmd:
+            log_cmd[log_cmd.index("--prompt") + 1] = "<PROMPT_PLACEHOLDER>"
+        
+        logger.debug(f"Executing agy command: {' '.join(log_cmd)}")
+        
         MAX_RETRIES = 5
 
         for attempt in range(MAX_RETRIES + 1):
@@ -170,6 +177,10 @@ class AgyClient:
                 # Note: For this demo/setup, if `agy` is not installed, this will fail.
                 # In a real environment, it will run the CLI.
                 result = subprocess.run(cmd, capture_output=True, text=True, check=True, cwd=cwd)
+                
+                logger.debug(f"Raw agy stdout:\n{result.stdout}")
+                if getattr(result, 'stderr', None):
+                    logger.debug(f"Raw agy stderr:\n{result.stderr}")
                 
                 output = result.stdout.strip()
                 
@@ -192,6 +203,7 @@ class AgyClient:
                     "context_truncated": context_truncated
                 }
             except subprocess.CalledProcessError as e:
+                logger.debug(f"Raw agy stdout (error):\n{e.stdout}")
                 if attempt < MAX_RETRIES:
                     logger.warning(f"agy command failed with code {e.returncode}: {e.stderr}. Retrying {attempt + 1}/{MAX_RETRIES}...")
                     time.sleep(1)

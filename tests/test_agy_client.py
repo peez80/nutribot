@@ -58,6 +58,7 @@ def test_process_message_success(mock_run, client):
     
     mock_run.return_value = MagicMock(
         stdout="Apfel notiert!\n",
+        stderr="",
         returncode=0
     )
     
@@ -83,6 +84,7 @@ def test_process_message_success(mock_run, client):
 def test_process_message_with_multiple_images(mock_run, client):
     mock_run.return_value = MagicMock(
         stdout="ok\n",
+        stderr="",
         returncode=0
     )
     
@@ -108,7 +110,7 @@ def test_process_message_retry_success(mock_run, mock_sleep, client):
     mock_run.side_effect = [
         subprocess.CalledProcessError(1, ["agy"], stderr="error 1"),
         subprocess.CalledProcessError(1, ["agy"], stderr="error 2"),
-        MagicMock(stdout="Apfel notiert!\n", returncode=0)
+        MagicMock(stdout="Apfel notiert!\n", stderr="", returncode=0)
     ]
     
     result = client.process_message([], "Ein Apfel.")
