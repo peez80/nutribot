@@ -201,3 +201,24 @@ def test_update_session_prompt(mock_exists, mock_file):
     loaded_data = json.loads(written_data)
     
     assert loaded_data["system_prompt"] == "New Prompt"
+
+@patch('builtins.open', new_callable=mock_open)
+@patch('app.storage.os.path.exists')
+def test_update_session_title(mock_exists, mock_file):
+    from app.storage import update_session_title
+    mock_exists.return_value = True
+    
+    session_data = json.dumps({
+        "id": "123",
+        "title": "Neuer Chat"
+    })
+    
+    mock_file.return_value.read.return_value = session_data
+    
+    update_session_title("testuser", "123", "Mein Titel")
+    
+    handle = mock_file()
+    written_data = "".join([call.args[0] for call in handle.write.call_args_list])
+    loaded_data = json.loads(written_data)
+    
+    assert loaded_data["title"] == "Mein Titel"

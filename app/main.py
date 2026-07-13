@@ -167,6 +167,19 @@ async def update_prompt_endpoint(session_id: str, req: SystemPromptRequest, user
     update_session_prompt(username, session_id, req.prompt)
     return {"success": True}
 
+class SessionTitleRequest(BaseModel):
+    title: str
+
+@app.put("/api/sessions/{session_id}/title")
+async def update_title_endpoint(session_id: str, req: SessionTitleRequest, username: str = Depends(get_current_user)):
+    sessions = get_sessions(username)
+    session_metadata = next((s for s in sessions if s["id"] == session_id), None)
+    if not session_metadata:
+        raise HTTPException(status_code=404, detail="Session not found")
+        
+    update_session_title(username, session_id, req.title)
+    return {"success": True}
+
 @app.post("/api/sessions/{session_id}/chat")
 async def chat_endpoint(
     session_id: str,

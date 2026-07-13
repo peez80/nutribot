@@ -461,6 +461,12 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- System Prompt Flow ---
     systemPromptBtn.addEventListener("click", () => {
         if (!currentSessionId) return;
+        
+        const session = window.lastSessions?.find(s => s.id === currentSessionId);
+        if (session) {
+            document.getElementById("chat-title-input").value = session.title || "";
+        }
+        
         systemPromptModal.style.display = "flex";
     });
 
@@ -473,23 +479,40 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!currentSessionId) return;
 
         const promptText = systemPromptInput.value.trim();
+        const titleText = document.getElementById("chat-title-input").value.trim();
         savePromptBtn.disabled = true;
         savePromptBtn.textContent = "Wird gespeichert...";
 
         try {
-            const res = await fetch(`/api/sessions/${currentSessionId}/prompt`, {
+            const promptRes = fetch(`/api/sessions/${currentSessionId}/prompt`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ prompt: promptText })
             });
 
-            if (res.ok) {
+            const session = window.lastSessions?.find(s => s.id === currentSessionId);
+            let titleRes = null;
+            if (titleText && session && session.title !== titleText) {
+                titleRes = fetch(`/api/sessions/${currentSessionId}/title`, {
+                     method: "PUT",
+                     headers: { "Content-Type": "application/json" },
+                     body: JSON.stringify({ title: titleText })
+                });
+            }
+
+            const responses = await Promise.all([promptRes, ...(titleRes ? [titleRes] : [])]);
+            const allOk = responses.every(res => res.ok);
+
+            if (allOk) {
                 systemPromptModal.style.display = "none";
+                if (titleRes) {
+                    await loadSessions();
+                }
             } else {
-                alert("Fehler beim Speichern des Prompts.");
+                alert("Fehler beim Speichern der Einstellungen.");
             }
         } catch (err) {
-            console.error("Error saving prompt", err);
+            console.error("Error saving settings", err);
             alert("Verbindungsfehler beim Speichern.");
         } finally {
             savePromptBtn.disabled = false;

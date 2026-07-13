@@ -146,3 +146,23 @@ def test_uploads_endpoint(mock_exists):
         assert "testuser" in mock_fileresponse.call_args[0][0]
         assert "123" in mock_fileresponse.call_args[0][0]
         assert mock_fileresponse.call_args[0][0].endswith("test.jpg")
+
+@patch("app.main.update_session_title")
+@patch("app.main.get_sessions")
+def test_update_title_endpoint(mock_get_sessions, mock_update_title):
+    mock_auth()
+    # Mocking get_sessions to allow the endpoint to verify the session exists
+    mock_get_sessions.return_value = [{"id": "sess-123", "title": "Old Title"}]
+    
+    response = client.put("/api/sessions/sess-123/title", json={"title": "New Title"})
+    assert response.status_code == 200
+    assert response.json() == {"success": True}
+    mock_update_title.assert_called_once_with("testuser", "sess-123", "New Title")
+
+@patch("app.main.get_sessions")
+def test_update_title_endpoint_not_found(mock_get_sessions):
+    mock_auth()
+    mock_get_sessions.return_value = [{"id": "sess-456", "title": "Old Title"}]
+    
+    response = client.put("/api/sessions/sess-123/title", json={"title": "New Title"})
+    assert response.status_code == 404
