@@ -328,11 +328,11 @@ body {
 
 .input-form {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     gap: 0.5rem;
     background-color: var(--bg-color);
     padding: 0.5rem;
-    border-radius: 2rem;
+    border-radius: 1.5rem;
     border: 1px solid var(--border-color);
 }
 
@@ -382,6 +382,11 @@ body {
     font-family: inherit;
     padding: 0.5rem;
     outline: none;
+    resize: none;
+    overflow-y: hidden;
+    max-height: 150px;
+    box-sizing: border-box;
+    line-height: 1.4;
 }
 
 #message-input::placeholder {

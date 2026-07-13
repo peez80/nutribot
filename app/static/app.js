@@ -358,6 +358,30 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
+    // Textarea auto-resize and keyboard logic
+    messageInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+        if (this.scrollHeight > 150) {
+            this.style.overflowY = 'auto';
+        } else {
+            this.style.overflowY = 'hidden';
+        }
+    });
+
+    messageInput.addEventListener('keydown', function(e) {
+        const isMobile = window.innerWidth <= 768 || /Mobi|Android/i.test(navigator.userAgent);
+        
+        if (e.key === 'Enter') {
+            if (!isMobile) {
+                if (!e.shiftKey) {
+                    e.preventDefault();
+                    document.getElementById('send-btn').click();
+                }
+            }
+        }
+    });
+
     // Handle form submission
     chatForm.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -395,6 +419,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Reset input
         messageInput.value = "";
+        messageInput.style.height = "auto";
+        messageInput.style.overflowY = "hidden";
         selectedImageFiles = [];
         updatePreviewUI();
 
