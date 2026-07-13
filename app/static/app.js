@@ -48,12 +48,15 @@ document.addEventListener("DOMContentLoaded", () => {
     closeSidebarBtn.addEventListener("click", toggleSidebar);
 
     // Scroll to bottom
-    const scrollToBottom = () => {
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+    const scrollToBottom = (smooth = false) => {
+        chatContainer.scrollTo({
+            top: chatContainer.scrollHeight,
+            behavior: smooth ? 'smooth' : 'auto'
+        });
     };
 
     // Append a message to the chat
-    const appendMessage = (text, isUser, imageUrls = [], timestampStr = null) => {
+    const appendMessage = (text, isUser, imageUrls = [], timestampStr = null, skipScroll = false, smoothScroll = false) => {
         const msgDiv = document.createElement("div");
         msgDiv.className = `message ${isUser ? "user-message" : "ai-message"}`;
 
@@ -90,6 +93,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 img.src = url;
                 img.alt = "Angehängtes Bild";
                 img.className = "chat-image";
+                img.onload = () => {
+                    if (skipScroll) {
+                        scrollToBottom(false);
+                    } else {
+                        const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 150;
+                        if (isNearBottom) {
+                            scrollToBottom(smoothScroll);
+                        }
+                    }
+                };
                 gridDiv.appendChild(img);
             });
             bubble.appendChild(gridDiv);
@@ -130,7 +143,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         msgDiv.appendChild(bubble);
         chatContainer.appendChild(msgDiv);
-        scrollToBottom();
+        
+        if (!skipScroll) {
+            scrollToBottom(smoothScroll);
+        }
     };
 
     // Show initial greeting
@@ -154,7 +170,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         typingDiv.appendChild(bubble);
         chatContainer.appendChild(typingDiv);
-        scrollToBottom();
+        scrollToBottom(true);
     };
 
     // Remove typing indicator
@@ -255,8 +271,9 @@ document.addEventListener("DOMContentLoaded", () => {
             chatContainer.innerHTML = '';
             if (history && history.length > 0) {
                 history.forEach(msg => {
-                    appendMessage(msg.text, msg.is_user, msg.image_urls || [], msg.timestamp);
+                    appendMessage(msg.text, msg.is_user, msg.image_urls || [], msg.timestamp, true, false);
                 });
+                scrollToBottom(false);
             } else {
                 showInitialGreeting();
             }
@@ -408,7 +425,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const now = new Date().toISOString();
-        appendMessage(displayMsg, true, localImageUrls, now);
+        appendMessage(displayMsg, true, localImageUrls, now, false, true);
 
         // Prepare form data
         const formData = new FormData();
@@ -440,7 +457,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (currentSessionId !== submittedSessionId) return;
 
-            appendMessage(data.reply, false, [], data.timestamp);
+            appendMessage(data.reply, false, [], data.timestamp, false, true);
 
             if (data.context_truncated) {
                 contextWarning.style.display = "flex";
