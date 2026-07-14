@@ -1,13 +1,26 @@
 # RememberBot - Persistent Agentic AI Chat
 
+[![Build Status](https://img.shields.io/github/actions/workflow/status/peez/rememberbot/main.yml?branch=main)](https://github.com/peez/rememberbot/actions)
+[![Docker Pulls](https://img.shields.io/docker/pulls/peez/rememberbot)](https://hub.docker.com/r/peez/rememberbot)
+
 A modern, web-based AI agentic chat with persistent Memory. The application uses the `antigravity-cli` (`agy`) as an AI backend to intelligently parse user input (both text and images) into structured data.
+
+<!-- 
+## Screenshots
+![RememberBot Chat Interface](docs/images/screenshot.png) 
+-->
+
+## Origin Story
+
+I originally started this project to use the normal Gemini web chat as a nutrition diary. However, after about two months, I realized that while Gemini has a long context window, it struggles to export data beyond the last few days. Furthermore, the standard web chat doesn't allow the use of MCP servers or other custom tools. 
+
+I loved the agentic behavior of the `gemini` / `antigravity` CLI, and I wanted to bring exactly those powerful capabilities—persistent local memory and tool use—into a convenient web-based chat UI. Thus, RememberBot was born.
 
 ## Features
 - **Conversational Interface**: Interact with your AI agent just by chatting.
 - **Advanced Image Support**: Upload pictures (with or without text captions) for automatic recognition and processing. On mobile devices, you can use your camera directly to snap and upload photos.
 - **Smart Parsing**: Powered by Google's Gemini models via the `antigravity-cli`, extracting structured data automatically.
 - **Responsive Web App**: Built with vanilla HTML/JS/CSS for a fast, responsive user experience.
-- **FastAPI Backend**: A lightweight and fast Python backend.
 
 ## Tech Stack
 - **Backend**: Python, FastAPI
@@ -19,6 +32,12 @@ A modern, web-based AI agentic chat with persistent Memory. The application uses
 
 ### Prerequisites
 - Docker and Docker Compose installed on your system.
+- The `antigravity-cli` must be configured locally. The Docker container mounts your local config `~/.gemini/antigravity-cli` to authenticate and run the backend. 
+  - *Tip:* If you don't have the CLI installed on your host system, you can initialize it directly through the container by running:
+    ```bash
+    docker-compose run --rm web agy setup
+    ```
+    (This will interactively guide you through the setup and populate the mounted `~/.gemini/antigravity-cli` directory on your host).
 
 ### Running the Application
 The application is fully containerized and can be started with Docker Compose:
@@ -31,10 +50,10 @@ The application is fully containerized and can be started with Docker Compose:
 3. Open your web browser and navigate to `http://localhost:8000`.
 
 ### Data Storage
-Data such as logged conversations and parsed information are stored in the local `_nutrition_data_volume` directory, which is mapped into the container. Die Daten werden für jeden Benutzer in eigenen Unterordnern isoliert gespeichert (z. B. `data/alice/sessions`).
+Data such as logged conversations and parsed information are stored in the local `_rememberbot_data` directory, which is mapped into the container. The data is stored isolated in separate subfolders for each user (e.g., `data/alice/sessions`).
 
 ### User Management
-The application supports multi-user authentication without self-registration. Valid users and their passwords must be configured manually in the `users.json` file located in the persistent data volume, specifically under `data/config/users.json` (or `_nutrition_data_volume/config/users.json` if running via docker-compose).
+The application supports multi-user authentication without self-registration. Valid users and their passwords must be configured manually in the `users.json` file located in the persistent data volume, specifically under `data/config/users.json` (or `_rememberbot_data/config/users.json` if running via docker-compose).
 
 Example `users.json`:
 ```json
@@ -43,7 +62,8 @@ Example `users.json`:
   "bob": "password"
 }
 ```
-*Note: Passwords are currently stored in plain text as per the configuration.*
+> [!WARNING]
+> **Security Note:** Passwords are currently stored in plain text. This authentication mechanism is intended for local or personal use only. Do not use this in a public-facing or production environment without adding proper password hashing.
 
 ## Architecture
 - `app/main.py`: The FastAPI application entry point, handling routing and HTTP requests.

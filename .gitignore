@@ -30,5 +30,5 @@ Thumbs.db
 docker-compose.override.yml
 
 # Project specific
-_nutrition_data_volume/
+_rememberbot_data/
 agy.tar.gz
