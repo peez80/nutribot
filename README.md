@@ -77,6 +77,7 @@ Example `users.json`:
 The project uses GitHub Actions for continuous integration and deployment:
 - **Automated Testing & Builds**: On every push, the pipeline runs automated tests and builds a new Docker image.
 - **Docker Hub**: Successful builds are automatically published to Docker Hub under [`peez/rememberbot`](https://hub.docker.com/r/peez/rememberbot).
+- **Versioning Strategy**: Docker images are automatically tagged based on the short Git commit SHA and a timestamp (e.g., `peez/rememberbot:<sha>-<timestamp>`). Builds from the default branch also receive the `latest` tag.
 - **Manual Triggers**: Workflows can also be triggered manually (`workflow_dispatch`) from the GitHub Actions interface.
 
 ## Testing

@@ -25,7 +25,7 @@ from .storage import (
     get_session_prompt, update_session_prompt, init_user_storage
 )
 
-app = FastAPI(title="AI Nutrition Diary App")
+app = FastAPI(title="RememberBot")
 
 app.add_middleware(
     CORSMiddleware,
