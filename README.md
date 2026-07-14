@@ -1,6 +1,6 @@
 # RememberBot - Persistent Agentic AI Chat
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/peez/rememberbot/main.yml?branch=main)](https://github.com/peez/rememberbot/actions)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/peez80/rememberbot/main.yml?branch=main)](https://github.com/peez80/rememberbot/actions)
 [![Docker Pulls](https://img.shields.io/docker/pulls/peez/rememberbot)](https://hub.docker.com/r/peez/rememberbot)
 
 A modern, web-based AI agentic chat with persistent Memory. The application uses the `antigravity-cli` (`agy`) as an AI backend to intelligently parse user input (both text and images) into structured data.
