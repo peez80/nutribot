@@ -1,7 +1,7 @@
-# Spezifikation: KI-Ernährungstagebuch Web-App
+# Spezifikation: RememberBot
 
 ## 1. Einleitung
-Die Anwendung ist ein KI-gestütztes Ernährungstagebuch. Ziel ist es, dem Benutzer eine einfache und intuitive Möglichkeit zu bieten, seine Mahlzeiten und eventuell auftretende Symptome zu erfassen. Die Erfassung erfolgt über ein Chat-Interface, das eine natürliche Interaktion ermöglicht.
+Die Anwendung ist ein generischer, agentischer KI-Chat mit persistentem Gedächtnis. Ziel ist es, dem Benutzer eine einfache und intuitive Möglichkeit zu bieten, Informationen, Logs oder beliebige Daten zu erfassen und abzurufen. Die Erfassung erfolgt über ein Chat-Interface, das eine natürliche Interaktion ermöglicht. (Ursprünglich als Ernährungstagebuch gestartet, fungiert die App nun als vielseitiger KI-Agent).
 
 ## 2. Hauptfunktionen
 
@@ -10,20 +10,20 @@ Die Anwendung ist ein KI-gestütztes Ernährungstagebuch. Ziel ist es, dem Benut
 - Der Benutzer kann hier wie in einer Messenger-App Eingaben tätigen und sieht den Verlauf.
 - **Responsive Layout:** Die Chat-Oberfläche muss sowohl auf Desktop-Rechnern als auch auf mobilen Endgeräten (Smartphones, Tablets) optimal dargestellt werden und nutzbar sein.
 
-### 2.2 Eingabe von Mahlzeiten
-- **Texteingabe:** Der Benutzer kann in natürlicher Sprache eingeben, was er gegessen oder getrunken hat (z. B. "Ich habe heute Morgen zwei Brötchen mit Marmelade und einen Kaffee mit Milch gehabt").
-- **Kamera-Integration (Smartphone):** Öffnet der Benutzer die Web-App auf dem Smartphone, kann er direkt über die Kamerafunktion des Geräts Fotos der Mahlzeiten aufnehmen.
+### 2.2 Dateneingabe und Logging
+- **Texteingabe:** Der Benutzer kann in natürlicher Sprache beliebige Informationen eingeben, die der Agent verarbeiten und speichern soll.
+- **Kamera-Integration (Smartphone):** Öffnet der Benutzer die Web-App auf dem Smartphone, kann er direkt über die Kamerafunktion Fotos aufnehmen (z.B. von Dokumenten, Gegenständen oder Mahlzeiten).
 - **Foto-Upload (Galerie/Dateisystem):** Zusätzlich können bereits vorhandene Fotos direkt in den Chat hochgeladen werden.
-- Bei Bildeingaben wird die KI genutzt, um die Fotos zu analysieren und die Mahlzeiten automatisch zu extrahieren.
+- Bei Bildeingaben wird die KI genutzt, um die Fotos zu analysieren und strukturierte Daten automatisch zu extrahieren.
 
-### 2.3 Eingabe von Symptomen
-- Der Benutzer kann über den Chat auch körperliche Symptome erfassen (z. B. "Ich habe seit einer Stunde Bauchschmerzen" oder "Mir ist etwas übel").
-- Ziel ist es, diese Symptome später mit den aufgenommenen Mahlzeiten korrelieren zu können.
+### 2.3 Datenkorrelation und Kontext
+- Der Benutzer kann über den Chat komplexe Zusammenhänge erfassen und abfragen.
+- Ziel ist es, dass der Agent diese Informationen persistent speichert und über verschiedene Chat-Sitzungen hinweg korrelieren kann (z.B. für Auswertungen oder Analysen).
 
 ### 2.4 KI-Backend (`antigravity-cli`)
 - Die Verarbeitung der Eingaben (Textverständnis, Bilderkennung und Antwortgenerierung) erfolgt über das Kommandozeilen-Tool `antigravity-cli` (Kommando: `agy`).
 - Die Python Web-App ruft das Tool lokal via Shell / Subprocess (`subprocess.run` o.ä.) auf, übergibt den Kontext (Text oder Dateipfad zum Bild) und wertet die Ausgabe aus.
-- Das Backend muss die Eingaben in strukturierte Daten (Lebensmittel, Symptome) umwandeln und eine freundliche Antwort für den Chat generieren.
+- Das Backend muss die Eingaben in strukturierte Daten umwandeln und eine freundliche Antwort für den Chat generieren.
 
 ## 3. Technische Anforderungen
 
@@ -38,13 +38,13 @@ Die Anwendung ist ein KI-gestütztes Ernährungstagebuch. Ziel ist es, dem Benut
 
 ### 3.3 Datenhaltung
 - **Speicherort:** Der Docker-Container erhält ein Volume-Mount sowie eine zugehörige Environment-Variable (z. B. `DATA_DIR`), in der der Speicherpfad definiert ist.
-- **Format & Struktur:** Pro Eintrag (jede Mahlzeit, jedes Symptom) wird eine eigene JSON-Datei angelegt.
+- **Format & Struktur:** Pro Eintrag (jede Aktion, jedes Log) wird eine eigene JSON-Datei angelegt.
 - **Ordnerstruktur:** Die JSON-Dateien werden nach Monat gruppiert in Unterverzeichnissen abgelegt (Format: `YYYY-MM`).
-- **Dateinamen:** Zur sauberen Sortierung erhält jede JSON-Datei als Präfix einen ISO-Timestamp (z. B. `2026-07-05T21:20:45Z_symptom.json`).
+- **Dateinamen:** Zur sauberen Sortierung erhält jede JSON-Datei als Präfix einen ISO-Timestamp (z. B. `2026-07-05T21:20:45Z_record.json`).
 
 ## 4. Gelöste Architektur-Entscheidungen
 - **Docker Setup:** Ein einzelner FastAPI-Container wird genutzt, um sowohl die API-Endpunkte bereitzustellen als auch die statischen Frontend-Dateien (HTML/JS/CSS) auszuliefern.
-- **JSON Schema:** Es wird ein einheitliches Schema verwendet: `{"type": "meal|symptom", "timestamp": "...", "raw_input": "...", "data": {...}}`.
+- **JSON Schema:** Es wird ein generisches Schema verwendet (z.B. `{"type": "record", "timestamp": "...", "raw_input": "...", "data": {...}}`), anpassbar an den jeweiligen Kontext.
 - **Chat Kontext:** Das Backend pflegt die Chat-Historie und übergibt die letzten N Nachrichten (z.B. 5) als Kontext im Prompt an `agy`.
 - **Bildverarbeitung:** Hochgeladene Bilder werden temporär im Container gespeichert (z.B. `/tmp`), der absolute Dateipfad wird an `agy` übergeben und anschließend wird das Bild gelöscht.
 - **agy Parameter:** Es wird von Standardparametern (`--prompt` und `--image`) ausgegangen. Der Aufruf wird in einer eigenen Python-Klasse gekapselt, um ihn später leicht anpassen zu können.

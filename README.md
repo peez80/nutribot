@@ -1,11 +1,11 @@
-# AI Nutrition Diary (KI Ernährungstagebuch)
+# RememberBot - Persistent Agentic AI Chat
 
-A modern, web-based AI nutrition diary that allows users to log their meals and symptoms via a conversational chat interface. The application uses the `antigravity-cli` (`agy`) as an AI backend to intelligently parse user input (both text and images) into structured data.
+A modern, web-based AI agentic chat with persistent Memory. The application uses the `antigravity-cli` (`agy`) as an AI backend to intelligently parse user input (both text and images) into structured data.
 
 ## Features
-- **Conversational Interface**: Log food and symptoms just by chatting with the AI.
-- **Advanced Image Support**: Upload pictures of your meals (with or without text captions) for automatic recognition and logging. On mobile devices, you can use your camera directly to snap and upload photos.
-- **Smart Parsing**: Powered by Google's Gemini models via the `antigravity-cli`, extracting structured meal and symptom data automatically.
+- **Conversational Interface**: Interact with your AI agent just by chatting.
+- **Advanced Image Support**: Upload pictures (with or without text captions) for automatic recognition and processing. On mobile devices, you can use your camera directly to snap and upload photos.
+- **Smart Parsing**: Powered by Google's Gemini models via the `antigravity-cli`, extracting structured data automatically.
 - **Responsive Web App**: Built with vanilla HTML/JS/CSS for a fast, responsive user experience.
 - **FastAPI Backend**: A lightweight and fast Python backend.
 
@@ -31,7 +31,7 @@ The application is fully containerized and can be started with Docker Compose:
 3. Open your web browser and navigate to `http://localhost:8000`.
 
 ### Data Storage
-Data such as logged meals and symptoms are stored in the local `_nutrition_data_volume` directory, which is mapped into the container. Die Daten werden für jeden Benutzer in eigenen Unterordnern isoliert gespeichert (z. B. `data/alice/sessions`).
+Data such as logged conversations and parsed information are stored in the local `_nutrition_data_volume` directory, which is mapped into the container. Die Daten werden für jeden Benutzer in eigenen Unterordnern isoliert gespeichert (z. B. `data/alice/sessions`).
 
 ### User Management
 The application supports multi-user authentication without self-registration. Valid users and their passwords must be configured manually in the `users.json` file located in the persistent data volume, specifically under `data/config/users.json` (or `_nutrition_data_volume/config/users.json` if running via docker-compose).
@@ -56,7 +56,7 @@ Example `users.json`:
 
 The project uses GitHub Actions for continuous integration and deployment:
 - **Automated Testing & Builds**: On every push, the pipeline runs automated tests and builds a new Docker image.
-- **Docker Hub**: Successful builds are automatically published to Docker Hub under [`peez/nutribot`](https://hub.docker.com/r/peez/nutribot).
+- **Docker Hub**: Successful builds are automatically published to Docker Hub under [`peez/rememberbot`](https://hub.docker.com/r/peez/rememberbot).
 - **Manual Triggers**: Workflows can also be triggered manually (`workflow_dispatch`) from the GitHub Actions interface.
 
 ## Testing

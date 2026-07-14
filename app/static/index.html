@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NutriBot - KI Ernährungstagebuch</title>
+    <title>RememberBot - Persistent Agentic AI Chat</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png?v=1">
     <!-- Modern Typography: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -40,8 +41,8 @@
                     <i class="ph-bold ph-list"></i>
                 </button>
                 <div class="header-title">
-                    <i class="ph-fill ph-leaf"></i>
-                    <h1>NutriBot</h1>
+                    <i class="ph-fill ph-robot"></i>
+                    <h1>RememberBot</h1>
                 </div>
                 <div id="user-badge" class="user-badge" style="display: none;" title="Benutzer"></div>
                 <button id="system-prompt-btn" class="icon-button" title="Chat-Einstellungen" disabled>
@@ -89,7 +90,7 @@
     <div id="auth-modal" class="modal-overlay" style="display: flex;">
         <div class="modal-content">
             <h2><i class="ph-bold ph-lock-key"></i> Login</h2>
-            <p>Bitte melde dich an, um dein Tagebuch zu nutzen.</p>
+            <p>Bitte melde dich an, um mit dem Chat zu starten.</p>
             
             <form id="auth-form" class="auth-form" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 1rem;">
                 <input type="text" id="login-username" placeholder="Benutzername" required autocomplete="username" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px;">
@@ -112,7 +113,7 @@
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                     <label for="system-prompt-input" style="font-size: 0.9rem; font-weight: 500;">System-Prompt</label>
-                    <textarea id="system-prompt-input" placeholder="Du bist ein hilfreicher Ernährungsberater..." class="prompt-textarea"></textarea>
+                    <textarea id="system-prompt-input" placeholder="Du bist ein hilfreicher Assistent..." class="prompt-textarea"></textarea>
                 </div>
                 <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
                     <button type="button" class="secondary-btn" id="close-prompt-btn">Abbrechen</button>
