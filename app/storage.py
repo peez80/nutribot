@@ -3,6 +3,12 @@ import json
 import uuid
 import shutil
 from datetime import datetime, timezone
+import asyncio
+from collections import defaultdict
+
+# Locks for session concurrency to prevent race conditions during read-modify-write
+session_locks = defaultdict(asyncio.Lock)
+
 
 # Load DATA_DIR from environment, fallback to a local 'data' folder
 DATA_DIR = os.getenv("DATA_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "data"))
@@ -33,7 +39,7 @@ def get_session_filepath(username: str, session_id: str) -> str:
     safe_session_id = os.path.basename(session_id)
     return os.path.join(DATA_DIR, username, "sessions", safe_session_id, "session.json")
 
-def create_session(username: str, title: str = "Neuer Chat") -> str:
+def _sync_create_session(username: str, title: str) -> str:
     init_user_storage(username)
     session_id = uuid.uuid4().hex
     init_session_storage(username, session_id)
@@ -52,7 +58,10 @@ def create_session(username: str, title: str = "Neuer Chat") -> str:
         
     return session_id
 
-def get_sessions(username: str) -> list:
+async def create_session(username: str, title: str = "Neuer Chat") -> str:
+    return await asyncio.to_thread(_sync_create_session, username, title)
+
+def _sync_get_sessions(username: str) -> list:
     sessions_dir = os.path.join(DATA_DIR, username, "sessions")
     if not os.path.exists(sessions_dir):
         return []
@@ -78,7 +87,10 @@ def get_sessions(username: str) -> list:
     sessions.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     return sessions
 
-def get_session_history(username: str, session_id: str) -> list:
+async def get_sessions(username: str) -> list:
+    return await asyncio.to_thread(_sync_get_sessions, username)
+
+def _sync_get_session_history(username: str, session_id: str) -> list:
     filepath = get_session_filepath(username, session_id)
     if not os.path.exists(filepath):
         return []
@@ -90,7 +102,11 @@ def get_session_history(username: str, session_id: str) -> list:
     except Exception:
         return []
 
-def save_session_message(username: str, session_id: str, message: dict):
+async def get_session_history(username: str, session_id: str) -> list:
+    async with session_locks[session_id]:
+        return await asyncio.to_thread(_sync_get_session_history, username, session_id)
+
+def _sync_save_session_message(username: str, session_id: str, message: dict):
     filepath = get_session_filepath(username, session_id)
     if not os.path.exists(filepath):
         return
@@ -106,7 +122,11 @@ def save_session_message(username: str, session_id: str, message: dict):
     except Exception:
         pass
 
-def update_session_title(username: str, session_id: str, new_title: str):
+async def save_session_message(username: str, session_id: str, message: dict):
+    async with session_locks[session_id]:
+        await asyncio.to_thread(_sync_save_session_message, username, session_id, message)
+
+def _sync_update_session_title(username: str, session_id: str, new_title: str):
     filepath = get_session_filepath(username, session_id)
     if not os.path.exists(filepath):
         return
@@ -122,13 +142,21 @@ def update_session_title(username: str, session_id: str, new_title: str):
     except Exception:
         pass
 
-def delete_session(username: str, session_id: str):
+async def update_session_title(username: str, session_id: str, new_title: str):
+    async with session_locks[session_id]:
+        await asyncio.to_thread(_sync_update_session_title, username, session_id, new_title)
+
+def _sync_delete_session(username: str, session_id: str):
     filepath = get_session_filepath(username, session_id)
     session_dir = os.path.dirname(filepath)
     if os.path.exists(session_dir):
         shutil.rmtree(session_dir)
 
-def get_session_prompt(username: str, session_id: str) -> str:
+async def delete_session(username: str, session_id: str):
+    async with session_locks[session_id]:
+        await asyncio.to_thread(_sync_delete_session, username, session_id)
+
+def _sync_get_session_prompt(username: str, session_id: str) -> str:
     filepath = get_session_filepath(username, session_id)
     if not os.path.exists(filepath):
         return ""
@@ -140,7 +168,11 @@ def get_session_prompt(username: str, session_id: str) -> str:
     except Exception:
         return ""
 
-def update_session_prompt(username: str, session_id: str, prompt: str):
+async def get_session_prompt(username: str, session_id: str) -> str:
+    async with session_locks[session_id]:
+        return await asyncio.to_thread(_sync_get_session_prompt, username, session_id)
+
+def _sync_update_session_prompt(username: str, session_id: str, prompt: str):
     filepath = get_session_filepath(username, session_id)
     if not os.path.exists(filepath):
         return
@@ -155,3 +187,7 @@ def update_session_prompt(username: str, session_id: str, prompt: str):
             json.dump(data, f, indent=2, ensure_ascii=False)
     except Exception:
         pass
+
+async def update_session_prompt(username: str, session_id: str, prompt: str):
+    async with session_locks[session_id]:
+        await asyncio.to_thread(_sync_update_session_prompt, username, session_id, prompt)

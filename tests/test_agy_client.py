@@ -10,7 +10,8 @@ def client():
 
 @patch("app.agy_client.os.path.exists")
 @patch("app.agy_client.os.listdir")
-def test_is_authenticated_via_dir(mock_listdir, mock_exists, client):
+@pytest.mark.asyncio
+async def test_is_authenticated_via_dir(mock_listdir, mock_exists, client):
     # Setup mock to return true for dir exists and has content
     mock_exists.return_value = True
     mock_listdir.return_value = ["credentials.json"]
@@ -19,7 +20,8 @@ def test_is_authenticated_via_dir(mock_listdir, mock_exists, client):
     
 @patch("app.agy_client.os.path.exists")
 @patch("app.agy_client.subprocess.run")
-def test_is_authenticated_via_cli(mock_run, mock_exists, client):
+@pytest.mark.asyncio
+async def test_is_authenticated_via_cli(mock_run, mock_exists, client):
     # Setup mock: dir doesn't exist, but CLI runs fine
     def mock_exists_side_effect(path):
         if "antigravity-cli" in path:
@@ -33,7 +35,8 @@ def test_is_authenticated_via_cli(mock_run, mock_exists, client):
     mock_run.assert_called_once()
 
 @patch("app.agy_client.subprocess.Popen")
-def test_get_login_url_success(mock_popen, client):
+@pytest.mark.asyncio
+async def test_get_login_url_success(mock_popen, client):
     # Setup a mock process that yields a URL
     mock_process = MagicMock()
     mock_process.stdout.readline.side_effect = [
@@ -49,86 +52,114 @@ def test_get_login_url_success(mock_popen, client):
     assert url == "https://antigravity.google/auth?code=xyz"
     mock_popen.assert_called_once()
 
-@patch("app.agy_client.subprocess.run")
-def test_process_message_success(mock_run, client):
+@patch("app.agy_client.asyncio.create_subprocess_exec")
+@pytest.mark.asyncio
+async def test_process_message_success(mock_create, client):
     expected_response = {
         "reply": "Apfel notiert!",
         "context_truncated": False
     }
     
-    mock_run.return_value = MagicMock(
-        stdout="Apfel notiert!\n",
-        stderr="",
-        returncode=0
-    )
+    # Mock the Process object returned by create_subprocess_exec
+    mock_process = MagicMock()
+    # communicate() is an async function that returns (stdout, stderr)
+    async def mock_communicate():
+        return (b"Apfel notiert!\n", b"")
+    mock_process.communicate = mock_communicate
+    mock_process.returncode = 0
+    mock_create.return_value = mock_process
     
     context = [{"is_user": True, "text": "Hallo"}]
     message = "Ein Apfel."
     
-    result = client.process_message(context, message)
+    result = await client.process_message(context, message)
     
     assert result == expected_response
-    mock_run.assert_called_once()
+    mock_create.assert_called_once()
     
     # Check if prompt formatting was correct
-    args, kwargs = mock_run.call_args
-    assert "--prompt" in args[0]
-    prompt_arg = args[0][args[0].index("--prompt") + 1]
+    args, kwargs = mock_create.call_args
+    assert "--prompt" in args
+    prompt_arg = args[args.index("--prompt") + 1]
     
     assert "<chat_history>" in prompt_arg
     assert "User: Hallo" in prompt_arg
     assert "<current_message>" in prompt_arg
     assert "User: Ein Apfel." in prompt_arg
 
-@patch("app.agy_client.subprocess.run")
-def test_process_message_with_multiple_images(mock_run, client):
-    mock_run.return_value = MagicMock(
-        stdout="ok\n",
-        stderr="",
-        returncode=0
-    )
+@patch("app.agy_client.asyncio.create_subprocess_exec")
+@pytest.mark.asyncio
+async def test_process_message_with_multiple_images(mock_create, client):
+    mock_process = MagicMock()
+    async def mock_communicate():
+        return (b"ok\n", b"")
+    mock_process.communicate = mock_communicate
+    mock_process.returncode = 0
+    mock_create.return_value = mock_process
     
-    result = client.process_message([], "Essen", ["/tmp/image1.jpg", "/tmp/image2.jpg"])
+    result = await client.process_message([], "Essen", ["/tmp/image1.jpg", "/tmp/image2.jpg"])
     
     assert result["reply"] == "ok"
     
     # Verify image paths are included in prompt
-    args, kwargs = mock_run.call_args
-    prompt_arg = args[0][args[0].index("--prompt") + 1]
+    args, kwargs = mock_create.call_args
+    prompt_arg = args[args.index("--prompt") + 1]
     assert "/tmp/image1.jpg" in prompt_arg
     assert "/tmp/image2.jpg" in prompt_arg
 
-@patch("app.agy_client.time.sleep")
-@patch("app.agy_client.subprocess.run")
-def test_process_message_retry_success(mock_run, mock_sleep, client):
+@patch("app.agy_client.asyncio.sleep")
+@patch("app.agy_client.asyncio.create_subprocess_exec")
+@pytest.mark.asyncio
+async def test_process_message_retry_success(mock_create, mock_sleep, client):
     # Mock CLI failing twice, then succeeding
     expected_response = {
         "reply": "Apfel notiert!",
         "context_truncated": False
     }
     
-    mock_run.side_effect = [
-        subprocess.CalledProcessError(1, ["agy"], stderr="error 1"),
-        subprocess.CalledProcessError(1, ["agy"], stderr="error 2"),
-        MagicMock(stdout="Apfel notiert!\n", stderr="", returncode=0)
+    mock_process_fail_1 = MagicMock()
+    async def comm_fail_1(): return (b"", b"error 1")
+    mock_process_fail_1.communicate = comm_fail_1
+    mock_process_fail_1.returncode = 1
+
+    mock_process_fail_2 = MagicMock()
+    async def comm_fail_2(): return (b"", b"error 2")
+    mock_process_fail_2.communicate = comm_fail_2
+    mock_process_fail_2.returncode = 1
+
+    mock_process_success = MagicMock()
+    async def comm_success(): return (b"Apfel notiert!\n", b"")
+    mock_process_success.communicate = comm_success
+    mock_process_success.returncode = 0
+    
+    mock_create.side_effect = [
+        mock_process_fail_1,
+        mock_process_fail_2,
+        mock_process_success
     ]
     
-    result = client.process_message([], "Ein Apfel.")
+    result = await client.process_message([], "Ein Apfel.")
     
     assert result == expected_response
-    assert mock_run.call_count == 3
+    assert mock_create.call_count == 3
     assert mock_sleep.call_count == 2
 
-@patch("app.agy_client.time.sleep")
-@patch("app.agy_client.subprocess.run")
-def test_process_message_retry_failure(mock_run, mock_sleep, client):
+@patch("app.agy_client.asyncio.sleep")
+@patch("app.agy_client.asyncio.create_subprocess_exec")
+@pytest.mark.asyncio
+async def test_process_message_retry_failure(mock_create, mock_sleep, client):
     # Mock CLI failing 6 times (1 initial + 5 retries)
-    mock_run.side_effect = [
-        subprocess.CalledProcessError(1, ["agy"], stderr=f"error {i}") for i in range(6)
-    ]
+    def create_failing_mock(i):
+        m = MagicMock()
+        async def comm(): return (b"", f"error {i}".encode())
+        m.communicate = comm
+        m.returncode = 1
+        return m
+
+    mock_create.side_effect = [create_failing_mock(i) for i in range(6)]
     
-    result = client.process_message([], "Ein Apfel.")
+    result = await client.process_message([], "Ein Apfel.")
     
     assert "nach 5 erfolglosen Versuchen" in result["reply"]
-    assert mock_run.call_count == 6
+    assert mock_create.call_count == 6
     assert mock_sleep.call_count == 5

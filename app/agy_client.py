@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import time
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +119,7 @@ class AgyClient:
                 self._login_process = None
             return False
 
-    def process_message(self, context_messages: list, new_message: str, image_paths: list = None, system_prompt: str = None, cwd: str = None) -> dict:
+    async def process_message(self, context_messages: list, new_message: str, image_paths: list = None, system_prompt: str = None, cwd: str = None) -> dict:
         """
         Calls the `agy` CLI with the provided context, new message, and optional image.
         Returns a dictionary containing the AI's response text.
@@ -173,16 +174,28 @@ class AgyClient:
 
         for attempt in range(MAX_RETRIES + 1):
             try:
-                # We use text=True to get a string back, capture stdout and stderr
-                # Note: For this demo/setup, if `agy` is not installed, this will fail.
-                # In a real environment, it will run the CLI.
-                result = subprocess.run(cmd, capture_output=True, text=True, check=True, cwd=cwd)
+                # Use asyncio subprocess for non-blocking execution
+                process = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=cwd
+                )
                 
-                logger.debug(f"Raw agy stdout:\n{result.stdout}")
-                if getattr(result, 'stderr', None):
-                    logger.debug(f"Raw agy stderr:\n{result.stderr}")
+                stdout_bytes, stderr_bytes = await process.communicate()
+                stdout_text = stdout_bytes.decode('utf-8', errors='replace')
+                stderr_text = stderr_bytes.decode('utf-8', errors='replace')
                 
-                output = result.stdout.strip()
+                if process.returncode != 0:
+                    raise subprocess.CalledProcessError(
+                        process.returncode, cmd, output=stdout_text, stderr=stderr_text
+                    )
+                
+                logger.debug(f"Raw agy stdout:\n{stdout_text}")
+                if stderr_text:
+                    logger.debug(f"Raw agy stderr:\n{stderr_text}")
+                
+                output = stdout_text.strip()
                 
                 def replace_thought(match):
                     content = match.group(1).strip()
@@ -206,7 +219,7 @@ class AgyClient:
                 logger.debug(f"Raw agy stdout (error):\n{e.stdout}")
                 if attempt < MAX_RETRIES:
                     logger.warning(f"agy command failed with code {e.returncode}: {e.stderr}. Retrying {attempt + 1}/{MAX_RETRIES}...")
-                    time.sleep(1)
+                    await asyncio.sleep(1)
                     continue
                 else:
                     logger.error(f"agy command failed with code {e.returncode}: {e.stderr} after {MAX_RETRIES} retries.")

@@ -22,13 +22,15 @@ def run_around_tests():
     yield
     clear_mock_auth()
 
-def test_index_route(tmp_path):
+@pytest.mark.asyncio
+async def test_index_route(tmp_path):
     with patch("builtins.open", MagicMock(return_value=MagicMock(__enter__=MagicMock(return_value=MagicMock(read=lambda: "<html>Mock</html>"))))):
         response = client.get("/")
         assert response.status_code == 200
         assert "Mock" in response.text
 
-def test_unauthenticated_access():
+@pytest.mark.asyncio
+async def test_unauthenticated_access():
     assert client.post("/api/sessions").status_code == 401
     assert client.get("/api/sessions").status_code == 401
     assert client.get("/api/sessions/123/history").status_code == 401
@@ -39,7 +41,8 @@ def test_unauthenticated_access():
     assert client.get("/uploads/123/test.jpg").status_code == 401
 
 @patch("app.main.create_session")
-def test_create_session_endpoint(mock_create):
+@pytest.mark.asyncio
+async def test_create_session_endpoint(mock_create):
     mock_auth()
     mock_create.return_value = "sess-123"
     response = client.post("/api/sessions")
@@ -48,7 +51,8 @@ def test_create_session_endpoint(mock_create):
     mock_create.assert_called_once_with("testuser", "Neuer Chat")
 
 @patch("app.main.get_sessions")
-def test_get_sessions_endpoint(mock_get):
+@pytest.mark.asyncio
+async def test_get_sessions_endpoint(mock_get):
     mock_auth()
     mock_get.return_value = [{"id": "1", "title": "Chat 1"}]
     response = client.get("/api/sessions")
@@ -57,7 +61,8 @@ def test_get_sessions_endpoint(mock_get):
     mock_get.assert_called_once_with("testuser")
 
 @patch("app.main.get_session_history")
-def test_get_history_endpoint(mock_history):
+@pytest.mark.asyncio
+async def test_get_history_endpoint(mock_history):
     mock_auth()
     mock_history.return_value = [{"text": "Hi", "is_user": True, "image_urls": [], "timestamp": None}]
     response = client.get("/api/sessions/sess-123/history")
@@ -71,7 +76,8 @@ def test_get_history_endpoint(mock_history):
 @patch("app.main.get_sessions")
 @patch("app.main.update_session_title")
 @patch("app.main.get_session_prompt")
-def test_chat_endpoint_text_only(mock_get_prompt, mock_update_title, mock_get_sessions, mock_save_msg, mock_get_history, mock_agy_client):
+@pytest.mark.asyncio
+async def test_chat_endpoint_text_only(mock_get_prompt, mock_update_title, mock_get_sessions, mock_save_msg, mock_get_history, mock_agy_client):
     mock_auth()
     mock_get_history.return_value = []
     mock_get_prompt.return_value = "Test prompt"
@@ -82,7 +88,9 @@ def test_chat_endpoint_text_only(mock_get_prompt, mock_update_title, mock_get_se
         "reply": "Pizza wurde erfasst.",
         "context_truncated": False
     }
-    mock_agy_client.process_message.return_value = mock_response
+    async def mock_process(*args, **kwargs):
+        return mock_response
+    mock_agy_client.process_message.side_effect = mock_process
     
     response = client.post("/api/sessions/sess-123/chat", data={"message": "Ich habe Pizza gegessen"})
     
@@ -104,7 +112,8 @@ def test_chat_endpoint_text_only(mock_get_prompt, mock_update_title, mock_get_se
 
 @patch("app.main.delete_session")
 @patch("app.main.get_sessions")
-def test_delete_session_endpoint(mock_get_sessions, mock_delete_session):
+@pytest.mark.asyncio
+async def test_delete_session_endpoint(mock_get_sessions, mock_delete_session):
     mock_auth()
     mock_get_sessions.return_value = [{"id": "sess-123", "title": "Test"}]
     
@@ -118,7 +127,8 @@ def test_delete_session_endpoint(mock_get_sessions, mock_delete_session):
     assert response.status_code == 404
 
 @patch("app.main.get_session_prompt")
-def test_get_prompt_endpoint(mock_get_prompt):
+@pytest.mark.asyncio
+async def test_get_prompt_endpoint(mock_get_prompt):
     mock_auth()
     mock_get_prompt.return_value = "Test prompt"
     response = client.get("/api/sessions/sess-123/prompt")
@@ -127,7 +137,8 @@ def test_get_prompt_endpoint(mock_get_prompt):
     mock_get_prompt.assert_called_once_with("testuser", "sess-123")
 
 @patch("app.main.update_session_prompt")
-def test_update_prompt_endpoint(mock_update_prompt):
+@pytest.mark.asyncio
+async def test_update_prompt_endpoint(mock_update_prompt):
     mock_auth()
     response = client.put("/api/sessions/sess-123/prompt", json={"prompt": "New prompt"})
     assert response.status_code == 200
@@ -135,7 +146,8 @@ def test_update_prompt_endpoint(mock_update_prompt):
     mock_update_prompt.assert_called_once_with("testuser", "sess-123", "New prompt")
 
 @patch("app.main.os.path.exists")
-def test_uploads_endpoint(mock_exists):
+@pytest.mark.asyncio
+async def test_uploads_endpoint(mock_exists):
     mock_auth()
     mock_exists.return_value = True
     with patch("app.main.FileResponse") as mock_fileresponse:
@@ -149,7 +161,8 @@ def test_uploads_endpoint(mock_exists):
 
 @patch("app.main.update_session_title")
 @patch("app.main.get_sessions")
-def test_update_title_endpoint(mock_get_sessions, mock_update_title):
+@pytest.mark.asyncio
+async def test_update_title_endpoint(mock_get_sessions, mock_update_title):
     mock_auth()
     # Mocking get_sessions to allow the endpoint to verify the session exists
     mock_get_sessions.return_value = [{"id": "sess-123", "title": "Old Title"}]
@@ -160,7 +173,8 @@ def test_update_title_endpoint(mock_get_sessions, mock_update_title):
     mock_update_title.assert_called_once_with("testuser", "sess-123", "New Title")
 
 @patch("app.main.get_sessions")
-def test_update_title_endpoint_not_found(mock_get_sessions):
+@pytest.mark.asyncio
+async def test_update_title_endpoint_not_found(mock_get_sessions):
     mock_auth()
     mock_get_sessions.return_value = [{"id": "sess-456", "title": "Old Title"}]
     

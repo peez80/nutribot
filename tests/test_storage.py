@@ -1,10 +1,12 @@
+import pytest
 import os
 import json
 from unittest.mock import patch, mock_open, MagicMock
 
 # New test for user storage initialization
 @patch('app.storage.os.makedirs')
-def test_init_user_storage(mock_makedirs):
+@pytest.mark.asyncio
+async def test_init_user_storage(mock_makedirs):
     from app.storage import init_user_storage
     init_user_storage("testuser")
     
@@ -17,7 +19,8 @@ def test_init_user_storage(mock_makedirs):
 @patch('app.storage.uuid.uuid4')
 @patch('app.storage.datetime')
 @patch('builtins.open', new_callable=mock_open)
-def test_create_session(mock_file, mock_datetime, mock_uuid, mock_exists):
+@pytest.mark.asyncio
+async def test_create_session(mock_file, mock_datetime, mock_uuid, mock_exists):
     from app.storage import create_session
     mock_uuid.return_value.hex = "12345"
     mock_exists.return_value = True
@@ -27,7 +30,7 @@ def test_create_session(mock_file, mock_datetime, mock_uuid, mock_exists):
     mock_datetime.now.return_value = mock_now
     
     username = "testuser"
-    session_id = create_session(username, "Test Chat")
+    session_id = await create_session(username, "Test Chat")
     
     assert session_id == "12345"
     mock_file.assert_called_once()
@@ -48,7 +51,8 @@ def test_create_session(mock_file, mock_datetime, mock_uuid, mock_exists):
 @patch('app.storage.os.path.isdir')
 @patch('app.storage.os.path.isfile')
 @patch('builtins.open', new_callable=mock_open)
-def test_get_sessions(mock_file, mock_isfile, mock_isdir, mock_listdir, mock_exists):
+@pytest.mark.asyncio
+async def test_get_sessions(mock_file, mock_isfile, mock_isdir, mock_listdir, mock_exists):
     from app.storage import get_sessions
     
     mock_exists.return_value = True
@@ -65,7 +69,7 @@ def test_get_sessions(mock_file, mock_isfile, mock_isdir, mock_listdir, mock_exi
     ]
     
     username = "testuser"
-    sessions = get_sessions(username)
+    sessions = await get_sessions(username)
     
     assert len(sessions) == 2
     assert sessions[0]["id"] == "2"
@@ -74,7 +78,8 @@ def test_get_sessions(mock_file, mock_isfile, mock_isdir, mock_listdir, mock_exi
 
 @patch('builtins.open', new_callable=mock_open)
 @patch('app.storage.os.path.exists')
-def test_get_session_history(mock_exists, mock_file):
+@pytest.mark.asyncio
+async def test_get_session_history(mock_exists, mock_file):
     from app.storage import get_session_history
     mock_exists.return_value = True
     
@@ -86,7 +91,7 @@ def test_get_session_history(mock_exists, mock_file):
     })
     mock_file.return_value.read.return_value = session_data
     
-    history = get_session_history("testuser", "123")
+    history = await get_session_history("testuser", "123")
     
     assert len(history) == 1
     assert history[0]["text"] == "Hi"
@@ -94,7 +99,8 @@ def test_get_session_history(mock_exists, mock_file):
 
 @patch('builtins.open', new_callable=mock_open)
 @patch('app.storage.os.path.exists')
-def test_save_session_message(mock_exists, mock_file):
+@pytest.mark.asyncio
+async def test_save_session_message(mock_exists, mock_file):
     from app.storage import save_session_message
     mock_exists.return_value = True
     
@@ -107,7 +113,7 @@ def test_save_session_message(mock_exists, mock_file):
     
     mock_file.return_value.read.return_value = session_data
     
-    save_session_message("testuser", "123", {"text": "Hello", "is_user": True})
+    await save_session_message("testuser", "123", {"text": "Hello", "is_user": True})
     
     handle = mock_file()
     written_data = "".join([call.args[0] for call in handle.write.call_args_list])
@@ -118,7 +124,8 @@ def test_save_session_message(mock_exists, mock_file):
 
 @patch('builtins.open', new_callable=mock_open)
 @patch('app.storage.os.path.exists')
-def test_update_session_title(mock_exists, mock_file):
+@pytest.mark.asyncio
+async def test_update_session_title(mock_exists, mock_file):
     from app.storage import update_session_title
     mock_exists.return_value = True
     
@@ -131,7 +138,7 @@ def test_update_session_title(mock_exists, mock_file):
     
     mock_file.return_value.read.return_value = session_data
     
-    update_session_title("testuser", "123", "New Title")
+    await update_session_title("testuser", "123", "New Title")
     
     handle = mock_file()
     written_data = "".join([call.args[0] for call in handle.write.call_args_list])
@@ -141,11 +148,12 @@ def test_update_session_title(mock_exists, mock_file):
 
 @patch('app.storage.os.path.exists')
 @patch('app.storage.shutil.rmtree')
-def test_delete_session(mock_rmtree, mock_exists):
+@pytest.mark.asyncio
+async def test_delete_session(mock_rmtree, mock_exists):
     from app.storage import delete_session
     mock_exists.return_value = True
     
-    delete_session("testuser", "123")
+    await delete_session("testuser", "123")
     
     mock_exists.assert_called_once()
     mock_rmtree.assert_called_once()
@@ -154,7 +162,8 @@ def test_delete_session(mock_rmtree, mock_exists):
 
 @patch('builtins.open', new_callable=mock_open)
 @patch('app.storage.os.path.exists')
-def test_get_session_prompt(mock_exists, mock_file):
+@pytest.mark.asyncio
+async def test_get_session_prompt(mock_exists, mock_file):
     from app.storage import get_session_prompt
     mock_exists.return_value = True
     
@@ -164,12 +173,13 @@ def test_get_session_prompt(mock_exists, mock_file):
     })
     mock_file.return_value.read.return_value = session_data
     
-    prompt = get_session_prompt("testuser", "123")
+    prompt = await get_session_prompt("testuser", "123")
     assert prompt == "You are a chef."
 
 @patch('builtins.open', new_callable=mock_open)
 @patch('app.storage.os.path.exists')
-def test_get_session_prompt_fallback(mock_exists, mock_file):
+@pytest.mark.asyncio
+async def test_get_session_prompt_fallback(mock_exists, mock_file):
     from app.storage import get_session_prompt
     mock_exists.return_value = True
     
@@ -178,12 +188,13 @@ def test_get_session_prompt_fallback(mock_exists, mock_file):
     })
     mock_file.return_value.read.return_value = session_data
     
-    prompt = get_session_prompt("testuser", "123")
+    prompt = await get_session_prompt("testuser", "123")
     assert prompt == ""
 
 @patch('builtins.open', new_callable=mock_open)
 @patch('app.storage.os.path.exists')
-def test_update_session_prompt(mock_exists, mock_file):
+@pytest.mark.asyncio
+async def test_update_session_prompt(mock_exists, mock_file):
     from app.storage import update_session_prompt
     mock_exists.return_value = True
     
@@ -194,7 +205,7 @@ def test_update_session_prompt(mock_exists, mock_file):
     
     mock_file.return_value.read.return_value = session_data
     
-    update_session_prompt("testuser", "123", "New Prompt")
+    await update_session_prompt("testuser", "123", "New Prompt")
     
     handle = mock_file()
     written_data = "".join([call.args[0] for call in handle.write.call_args_list])
@@ -204,7 +215,8 @@ def test_update_session_prompt(mock_exists, mock_file):
 
 @patch('builtins.open', new_callable=mock_open)
 @patch('app.storage.os.path.exists')
-def test_update_session_title(mock_exists, mock_file):
+@pytest.mark.asyncio
+async def test_update_session_title(mock_exists, mock_file):
     from app.storage import update_session_title
     mock_exists.return_value = True
     
@@ -215,7 +227,7 @@ def test_update_session_title(mock_exists, mock_file):
     
     mock_file.return_value.read.return_value = session_data
     
-    update_session_title("testuser", "123", "Mein Titel")
+    await update_session_title("testuser", "123", "Mein Titel")
     
     handle = mock_file()
     written_data = "".join([call.args[0] for call in handle.write.call_args_list])
@@ -226,7 +238,8 @@ def test_update_session_title(mock_exists, mock_file):
 @patch('app.storage.os.path.exists')
 @patch('app.storage.uuid.uuid4')
 @patch('builtins.open', new_callable=mock_open)
-def test_session_json_schema(mock_file, mock_uuid, mock_exists):
+@pytest.mark.asyncio
+async def test_session_json_schema(mock_file, mock_uuid, mock_exists):
     """
     Stellt sicher, dass die Struktur der session.json bei Änderungen nicht 
     unbeabsichtigt geändert wird und bestehende Daten inkompatibel werden.
@@ -235,7 +248,7 @@ def test_session_json_schema(mock_file, mock_uuid, mock_exists):
     mock_uuid.return_value.hex = "schema-test-id"
     mock_exists.return_value = True
     
-    create_session("testuser", "Schema Test Chat")
+    await create_session("testuser", "Schema Test Chat")
     
     handle = mock_file()
     written_data = "".join([call.args[0] for call in handle.write.call_args_list])
