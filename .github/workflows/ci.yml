@@ -61,7 +61,19 @@ jobs:
 
       - name: Output Image Tags to Job Summary
         run: |
+          USERNAME="${{ secrets.DOCKERHUB_USERNAME }}"
+          TAGS="${{ steps.meta.outputs.tags }}"
+          
+          if [ -n "$USERNAME" ]; then
+            SPLIT_USER="${USERNAME:0:1}<span>${USERNAME:1}</span>"
+            MODIFIED_TAGS="${TAGS//$USERNAME/$SPLIT_USER}"
+          else
+            MODIFIED_TAGS="$TAGS"
+          fi
+          
           echo "### 🐳 Generated Docker Image Tags" >> $GITHUB_STEP_SUMMARY
-          echo '```text' >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "<ul>" >> $GITHUB_STEP_SUMMARY
+          for tag in $MODIFIED_TAGS; do
+            echo "<li><code>$tag</code></li>" >> $GITHUB_STEP_SUMMARY
+          done
+          echo "</ul>" >> $GITHUB_STEP_SUMMARY
