@@ -21,3 +21,8 @@ Diese Datei enthält projektspezifische Verhaltensregeln und Standard-Anweisunge
 - Füge für neue komplexe Funktionen oder Klassen aussagekräftige Docstrings hinzu.
 - Schreibe Code-Kommentare auf Englisch (passend zum restlichen Code), kommuniziere mit dem Nutzer aber weiterhin auf Deutsch.
 - Aktualisiere bei Änderungen die entsprechenden Texte in den Markdown-Dateien im `docs` Ordner und in der README.md.
+
+## 5. Ausführung & Umgebung
+- Führe **alle** Befehle (wie Tests, Skripte, Applikationsstart) immer streng über `docker compose` bzw. im Container aus. 
+- Nutze auf dem Host-System keine nativen Tools wie `uv`, lokales `pip` oder lokales `python`.
+- Beispiel für Tests: `docker compose run --rm web pytest tests/`
