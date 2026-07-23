@@ -10,7 +10,9 @@ RUN apt-get update && apt-get install -y \
 
 # Copy requirements and install them
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    playwright install --with-deps chromium
+
 
 # Dynamically install the latest antigravity-cli
 RUN if [ "$(uname -m)" = "x86_64" ]; then ARCH="x64"; elif [ "$(uname -m)" = "aarch64" ]; then ARCH="arm64"; else ARCH="$(uname -m)"; fi && \

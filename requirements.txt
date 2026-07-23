@@ -4,3 +4,6 @@ python-multipart
 pytest
 httpx
 pytest-asyncio
+playwright
+pytest-playwright
+

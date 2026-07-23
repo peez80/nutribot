@@ -40,6 +40,8 @@ document.addEventListener("DOMContentLoaded", () => {
     let selectedImageFiles = [];
     let currentSessionId = localStorage.getItem("currentSessionId");
 
+    const scrollToBottomBtn = document.getElementById("scroll-to-bottom-btn");
+
     // Toggle Sidebar Mobile
     const toggleSidebar = () => {
         sidebar.classList.toggle("open");
@@ -47,13 +49,37 @@ document.addEventListener("DOMContentLoaded", () => {
     menuBtn.addEventListener("click", toggleSidebar);
     closeSidebarBtn.addEventListener("click", toggleSidebar);
 
+    // Check scroll position to toggle scroll-to-bottom button
+    const checkScrollPosition = () => {
+        if (!scrollToBottomBtn) return;
+        const threshold = 50;
+        const isAtBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight <= threshold;
+        if (isAtBottom) {
+            scrollToBottomBtn.classList.remove("visible");
+        } else {
+            scrollToBottomBtn.classList.add("visible");
+        }
+    };
+
+    chatContainer.addEventListener("scroll", checkScrollPosition);
+
     // Scroll to bottom
     const scrollToBottom = (smooth = false) => {
         chatContainer.scrollTo({
             top: chatContainer.scrollHeight,
             behavior: smooth ? 'smooth' : 'auto'
         });
+        if (scrollToBottomBtn) {
+            scrollToBottomBtn.classList.remove("visible");
+        }
     };
+
+    if (scrollToBottomBtn) {
+        scrollToBottomBtn.addEventListener("click", () => {
+            scrollToBottom(true);
+        });
+    }
+
 
     // Append a message to the chat
     const appendMessage = (text, isUser, imageUrls = [], timestampStr = null, skipScroll = false, smoothScroll = false) => {

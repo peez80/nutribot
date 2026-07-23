@@ -82,7 +82,7 @@ The project uses GitHub Actions for continuous integration and deployment:
 
 ## Testing
 
-The project uses `pytest` for automated testing, including unit tests and integration tests.
+The project uses `pytest` and `Playwright` for automated testing, including unit tests, API integration tests, and end-to-end (E2E) browser tests.
 
 To run the test suite, use Docker Compose to execute `pytest` within the container environment:
 
@@ -90,7 +90,17 @@ To run the test suite, use Docker Compose to execute `pytest` within the contain
 docker-compose run --rm web pytest tests/
 ```
 
-This will run tests for:
+This will run all tests (both unit tests and Playwright E2E browser tests) together:
 - Local storage logic (`tests/test_storage.py`)
 - API endpoints and chat behavior (`tests/test_main.py`)
 - `agy` CLI interaction and JSON parsing (`tests/test_agy_client.py`)
+- UI component static asset integrity (`tests/test_scroll_button.py`)
+- End-to-End browser UI interactions via Playwright (`tests/test_scroll_e2e.py`)
+
+To run only the Playwright E2E browser tests:
+
+```bash
+docker-compose run --rm web pytest tests/test_scroll_e2e.py
+```
+
+
