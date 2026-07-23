@@ -119,14 +119,24 @@ document.addEventListener("DOMContentLoaded", () => {
                 img.src = url;
                 img.alt = "Angehängtes Bild";
                 img.className = "chat-image";
+
+                let initialHeight = 0;
                 img.onload = () => {
-                    if (skipScroll) {
-                        scrollToBottom(false);
-                    } else {
-                        const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 150;
-                        if (isNearBottom) {
-                            scrollToBottom(smoothScroll);
-                        }
+                    if (img.dataset.loaded) return;
+                    img.dataset.loaded = "true";
+
+                    const newHeight = img.offsetHeight;
+                    const deltaHeight = newHeight - initialHeight;
+                    const threshold = 150;
+                    const canScroll = chatContainer.scrollHeight > chatContainer.clientHeight;
+                    const isNearBottom = canScroll && (chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight <= threshold);
+
+                    if (isNearBottom) {
+                        // Keep pinned to bottom if user is reading at the bottom
+                        scrollToBottom(skipScroll ? false : smoothScroll);
+                    } else if (img.offsetTop < chatContainer.scrollTop && deltaHeight > 0) {
+                        // Image loaded above current viewport: adjust scrollTop by height gain to preserve view position
+                        chatContainer.scrollTop += deltaHeight;
                     }
                 };
                 gridDiv.appendChild(img);
