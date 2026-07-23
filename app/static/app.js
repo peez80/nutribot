@@ -82,7 +82,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     // Append a message to the chat
-    const appendMessage = (text, isUser, imageUrls = [], timestampStr = null, skipScroll = false, smoothScroll = false) => {
+    const appendMessage = (text, isUser, imagesData = [], timestampStr = null, skipScroll = false, smoothScroll = false) => {
         const msgDiv = document.createElement("div");
         msgDiv.className = `message ${isUser ? "user-message" : "ai-message"}`;
 
@@ -115,12 +115,26 @@ document.addEventListener("DOMContentLoaded", () => {
             bubble.appendChild(textDiv);
         }
 
-        if (imageUrls && imageUrls.length > 0) {
+        if (imagesData && imagesData.length > 0) {
             const gridDiv = document.createElement("div");
             gridDiv.className = "chat-images-grid";
-            imageUrls.forEach(url => {
+            imagesData.forEach(imgData => {
                 const img = document.createElement("img");
-                img.src = url;
+                let hasDimensions = false;
+                
+                if (typeof imgData === 'string') {
+                    img.src = imgData;
+                } else if (imgData && imgData.url) {
+                    img.src = imgData.url;
+                    if (imgData.width && imgData.height) {
+                        img.width = imgData.width;
+                        img.height = imgData.height;
+                        hasDimensions = true;
+                    }
+                } else {
+                    return;
+                }
+                
                 img.alt = "Angehängtes Bild";
                 img.className = "chat-image";
                 img.loading = "lazy";
@@ -130,6 +144,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 img.onload = () => {
                     if (img.dataset.loaded) return;
                     img.dataset.loaded = "true";
+                    
+                    if (hasDimensions) return;
 
                     const newHeight = img.offsetHeight;
                     const deltaHeight = newHeight - initialHeight;
@@ -313,7 +329,7 @@ document.addEventListener("DOMContentLoaded", () => {
             chatContainer.innerHTML = '';
             if (history && history.length > 0) {
                 history.forEach(msg => {
-                    appendMessage(msg.text, msg.is_user, msg.image_urls || [], msg.timestamp, true, false);
+                    appendMessage(msg.text, msg.is_user, msg.images || msg.image_urls || [], msg.timestamp, true, false);
                 });
                 scrollToBottom(false);
             } else {

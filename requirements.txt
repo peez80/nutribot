@@ -6,4 +6,4 @@ httpx
 pytest-asyncio
 playwright
 pytest-playwright
-
+Pillow

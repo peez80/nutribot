@@ -87,7 +87,7 @@ async def test_get_session_history(mock_exists, mock_file):
         "id": "123",
         "title": "Chat",
         "created_at": "2026-07-06T12:00:00+00:00",
-        "history": [{"text": "Hi", "is_user": True}]
+        "history": [{"text": "Hi", "is_user": True, "images": [{"url": "/uploads/test.png", "width": 800, "height": 600}]}]
     })
     mock_file.return_value.read.return_value = session_data
     
@@ -95,6 +95,8 @@ async def test_get_session_history(mock_exists, mock_file):
     
     assert len(history) == 1
     assert history[0]["text"] == "Hi"
+    assert len(history[0]["images"]) == 1
+    assert history[0]["images"][0]["width"] == 800
     assert "testuser" in mock_exists.call_args[0][0]
 
 @patch('builtins.open', new_callable=mock_open)
@@ -113,7 +115,7 @@ async def test_save_session_message(mock_exists, mock_file):
     
     mock_file.return_value.read.return_value = session_data
     
-    await save_session_message("testuser", "123", {"text": "Hello", "is_user": True})
+    await save_session_message("testuser", "123", {"text": "Hello", "is_user": True, "images": [{"url": "/img.png", "width": 100, "height": 100}]})
     
     handle = mock_file()
     written_data = "".join([call.args[0] for call in handle.write.call_args_list])
@@ -121,6 +123,7 @@ async def test_save_session_message(mock_exists, mock_file):
     
     assert len(loaded_data["history"]) == 1
     assert loaded_data["history"][0]["text"] == "Hello"
+    assert loaded_data["history"][0]["images"][0]["width"] == 100
 
 @patch('builtins.open', new_callable=mock_open)
 @patch('app.storage.os.path.exists')

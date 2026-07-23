@@ -4,6 +4,8 @@ import uuid
 import re
 import urllib.parse
 import asyncio
+import io
+from PIL import Image
 from datetime import datetime, timezone
 from typing import List, Optional
 
@@ -94,6 +96,7 @@ class ChatMessage(BaseModel):
     text: str
     is_user: bool
     image_urls: List[str] = []
+    images: Optional[List[dict]] = None
     timestamp: Optional[str] = None
 
 @app.get("/", response_class=HTMLResponse)
@@ -209,6 +212,7 @@ async def chat_endpoint(
     display_msg = message
     image_paths = []
     image_urls = []
+    images_data = []
     
     if valid_images:
         # Ensure uploads dir exists for user
@@ -222,11 +226,21 @@ async def chat_endpoint(
             img_path = os.path.join(user_uploads_dir, filename)
             
             contents = await img.read()
+            
+            width, height = 0, 0
+            try:
+                with Image.open(io.BytesIO(contents)) as pil_img:
+                    width, height = pil_img.size
+            except Exception as e:
+                logging.warning(f"Could not read image dimensions: {e}")
+
             with open(img_path, "wb") as f:
                 f.write(contents)
                 
             image_paths.append(img_path)
-            image_urls.append(f"/uploads/{session_id}/{filename}")
+            url = f"/uploads/{session_id}/{filename}"
+            image_urls.append(url)
+            images_data.append({"url": url, "width": width, "height": height})
             
         if not display_msg:
             display_msg = f"[{len(valid_images)} Bild(er) gesendet]"
@@ -246,6 +260,7 @@ async def chat_endpoint(
             "text": display_msg, 
             "is_user": True,
             "image_urls": image_urls,
+            "images": images_data if images_data else None,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
         await save_session_message(username, session_id, user_msg_data)

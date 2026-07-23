@@ -64,10 +64,10 @@ async def test_get_sessions_endpoint(mock_get):
 @pytest.mark.asyncio
 async def test_get_history_endpoint(mock_history):
     mock_auth()
-    mock_history.return_value = [{"text": "Hi", "is_user": True, "image_urls": [], "timestamp": None}]
+    mock_history.return_value = [{"text": "Hi", "is_user": True, "image_urls": [], "images": None, "timestamp": None}]
     response = client.get("/api/sessions/sess-123/history")
     assert response.status_code == 200
-    assert response.json() == [{"text": "Hi", "is_user": True, "image_urls": [], "timestamp": None}]
+    assert response.json() == [{"text": "Hi", "is_user": True, "image_urls": [], "images": None, "timestamp": None}]
     mock_history.assert_called_once_with("testuser", "sess-123")
 
 @patch("app.main.agy_client")
@@ -109,6 +109,50 @@ async def test_chat_endpoint_text_only(mock_get_prompt, mock_update_title, mock_
     user_msg_call = mock_save_msg.call_args_list[0][0][2]
     assert user_msg_call["text"] == "Ich habe Pizza gegessen"
     assert user_msg_call["is_user"] is True
+
+@patch("app.main.agy_client")
+@patch("app.main.get_session_history")
+@patch("app.main.save_session_message")
+@patch("app.main.get_sessions")
+@patch("app.main.update_session_title")
+@patch("app.main.get_session_prompt")
+@pytest.mark.asyncio
+async def test_chat_endpoint_with_image(mock_get_prompt, mock_update_title, mock_get_sessions, mock_save_msg, mock_get_history, mock_agy_client):
+    mock_auth()
+    mock_get_history.return_value = []
+    mock_get_prompt.return_value = "Test prompt"
+    mock_get_sessions.return_value = [{"id": "sess-img-123", "title": "Neuer Chat"}]
+    
+    mock_response = {
+        "reply": "Schönes Bild.",
+        "context_truncated": False
+    }
+    async def mock_process(*args, **kwargs):
+        return mock_response
+    mock_agy_client.process_message.side_effect = mock_process
+    
+    import base64
+    # Minimal 1x1 transparent PNG
+    png_data = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=")
+    
+    files = {"images": ("test.png", png_data, "image/png")}
+    data = {"message": "Schau dir das an"}
+    
+    response = client.post("/api/sessions/sess-img-123/chat", data=data, files=files)
+    
+    assert response.status_code == 200
+    
+    # Verify messages saved
+    assert mock_save_msg.call_count == 2
+    user_msg_call = mock_save_msg.call_args_list[0][0][2]
+    
+    assert user_msg_call["text"] == "Schau dir das an [1 Bild(er) angehängt]"
+    assert user_msg_call["is_user"] is True
+    assert "images" in user_msg_call
+    assert len(user_msg_call["images"]) == 1
+    assert "url" in user_msg_call["images"][0]
+    assert user_msg_call["images"][0]["width"] == 1
+    assert user_msg_call["images"][0]["height"] == 1
 
 @patch("app.main.delete_session")
 @patch("app.main.get_sessions")

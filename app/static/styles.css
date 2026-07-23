@@ -204,6 +204,21 @@ body {
 .markdown-body img {
     max-width: 100%;
     height: auto;
+    min-height: 150px;
+}
+
+.chat-images-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.chat-image {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    object-fit: contain;
 }
 
 .markdown-body table {
