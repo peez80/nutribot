@@ -104,6 +104,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 const parsedHTML = marked.parse(text);
                 textDiv.innerHTML = DOMPurify.sanitize(parsedHTML, { ADD_TAGS: ['details', 'summary'], ADD_ATTR: ['class'] });
                 textDiv.className = "markdown-body";
+                textDiv.querySelectorAll("img").forEach(img => {
+                    img.loading = "lazy";
+                    img.decoding = "async";
+                });
             } else {
                 textDiv.textContent = text;
             }
@@ -119,6 +123,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 img.src = url;
                 img.alt = "Angehängtes Bild";
                 img.className = "chat-image";
+                img.loading = "lazy";
+                img.decoding = "async";
 
                 let initialHeight = 0;
                 img.onload = () => {
