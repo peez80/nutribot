@@ -137,6 +137,7 @@ class AgyClient:
         
         history_file_path = None
         if context_messages:
+            t_write_start = time.perf_counter()
             filename = f"chat_context_{uuid.uuid4().hex[:8]}.txt"
             history_file_path = os.path.join(cwd if cwd else "/tmp", filename)
             
@@ -148,6 +149,10 @@ class AgyClient:
                     ts_str = f"[{timestamp}] " if timestamp else ""
                     f.write(f"{ts_str}{role}: {msg.get('text')}\n")
                 f.write("</chat_history>\n")
+            
+            t_write_end = time.perf_counter()
+            file_size = os.path.getsize(history_file_path)
+            logger.info(f"Schreiben der Kontextdatei ({file_size} Bytes) dauerte: {t_write_end - t_write_start:.4f}s")
             
             prompt += f"Lies zwingend die Datei {history_file_path} für den bisherigen Chat-Verlauf!\n\n"
             
@@ -174,6 +179,7 @@ class AgyClient:
 
         for attempt in range(MAX_RETRIES + 1):
             try:
+                t_agy_start = time.perf_counter()
                 # Use asyncio subprocess for non-blocking execution
                 process = await asyncio.create_subprocess_exec(
                     *cmd,
@@ -183,6 +189,9 @@ class AgyClient:
                 )
                 
                 stdout_bytes, stderr_bytes = await process.communicate()
+                t_agy_end = time.perf_counter()
+                logger.info(f"agy Ausführung (Versuch {attempt+1}) dauerte: {t_agy_end - t_agy_start:.2f}s")
+                
                 stdout_text = stdout_bytes.decode('utf-8', errors='replace')
                 stderr_text = stderr_bytes.decode('utf-8', errors='replace')
                 
