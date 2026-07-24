@@ -52,9 +52,10 @@ async def test_get_login_url_success(mock_popen, client):
     assert url == "https://antigravity.google/auth?code=xyz"
     mock_popen.assert_called_once()
 
+@patch("app.agy_client.os.remove")
 @patch("app.agy_client.asyncio.create_subprocess_exec")
 @pytest.mark.asyncio
-async def test_process_message_success(mock_create, client):
+async def test_process_message_success(mock_create, mock_remove, client, tmp_path):
     expected_response = {
         "reply": "Apfel notiert!",
         "context_truncated": False
@@ -69,10 +70,10 @@ async def test_process_message_success(mock_create, client):
     mock_process.returncode = 0
     mock_create.return_value = mock_process
     
-    context = [{"is_user": True, "text": "Hallo"}]
+    context = [{"is_user": True, "text": "Hallo", "timestamp": "2024-01-01T12:00Z"}]
     message = "Ein Apfel."
     
-    result = await client.process_message(context, message)
+    result = await client.process_message(context, message, cwd=str(tmp_path))
     
     assert result == expected_response
     mock_create.assert_called_once()
@@ -82,10 +83,22 @@ async def test_process_message_success(mock_create, client):
     assert "--prompt" in args
     prompt_arg = args[args.index("--prompt") + 1]
     
-    assert "<chat_history>" in prompt_arg
-    assert "User: Hallo" in prompt_arg
+    assert "<chat_history>" not in prompt_arg
+    assert "Lies zwingend die Datei" in prompt_arg
     assert "<current_message>" in prompt_arg
     assert "User: Ein Apfel." in prompt_arg
+    
+    # Check file operations
+    mock_remove.assert_called_once()
+    removed_path = mock_remove.call_args[0][0]
+    assert removed_path.endswith(".txt")
+    assert "chat_context_" in removed_path
+    
+    # Verify file contents since os.remove was mocked and file is still there
+    with open(removed_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    assert "<chat_history>" in content
+    assert "[2024-01-01T12:00Z] User: Hallo" in content
 
 @patch("app.agy_client.asyncio.create_subprocess_exec")
 @pytest.mark.asyncio
@@ -107,10 +120,11 @@ async def test_process_message_with_multiple_images(mock_create, client):
     assert "/tmp/image1.jpg" in prompt_arg
     assert "/tmp/image2.jpg" in prompt_arg
 
+@patch("app.agy_client.os.remove")
 @patch("app.agy_client.asyncio.sleep")
 @patch("app.agy_client.asyncio.create_subprocess_exec")
 @pytest.mark.asyncio
-async def test_process_message_retry_success(mock_create, mock_sleep, client):
+async def test_process_message_retry_success(mock_create, mock_sleep, mock_remove, client, tmp_path):
     # Mock CLI failing twice, then succeeding
     expected_response = {
         "reply": "Apfel notiert!",
@@ -138,16 +152,18 @@ async def test_process_message_retry_success(mock_create, mock_sleep, client):
         mock_process_success
     ]
     
-    result = await client.process_message([], "Ein Apfel.")
+    result = await client.process_message([{"text": "ctx"}], "Ein Apfel.", cwd=str(tmp_path))
     
     assert result == expected_response
     assert mock_create.call_count == 3
     assert mock_sleep.call_count == 2
+    mock_remove.assert_called_once()
 
+@patch("app.agy_client.os.remove")
 @patch("app.agy_client.asyncio.sleep")
 @patch("app.agy_client.asyncio.create_subprocess_exec")
 @pytest.mark.asyncio
-async def test_process_message_retry_failure(mock_create, mock_sleep, client):
+async def test_process_message_retry_failure(mock_create, mock_sleep, mock_remove, client, tmp_path):
     # Mock CLI failing 6 times (1 initial + 5 retries)
     def create_failing_mock(i):
         m = MagicMock()
@@ -158,8 +174,9 @@ async def test_process_message_retry_failure(mock_create, mock_sleep, client):
 
     mock_create.side_effect = [create_failing_mock(i) for i in range(6)]
     
-    result = await client.process_message([], "Ein Apfel.")
+    result = await client.process_message([{"text": "ctx"}], "Ein Apfel.", cwd=str(tmp_path))
     
     assert "nach 5 erfolglosen Versuchen" in result["reply"]
     assert mock_create.call_count == 6
     assert mock_sleep.call_count == 5
+    mock_remove.assert_not_called()

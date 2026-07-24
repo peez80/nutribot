@@ -5,6 +5,7 @@ import os
 import re
 import time
 import asyncio
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -125,41 +126,40 @@ class AgyClient:
         Returns a dictionary containing the AI's response text.
         """
         context_truncated = False
-        MAX_CMD_LENGTH = 1500000 # 1.5M chars safe limit for Linux ARG_MAX
+        MAX_CMD_LENGTH = 100000 # 100k chars safe limit for Linux ARG_MAX (often 128KB in Docker)
         
-        # We loop to truncate oldest messages if the built prompt is too large
-        while True:
-            # Format the prompt
-            prompt = ""
-            if system_prompt:
-                prompt += f"<system_instructions>\n{system_prompt}\n</system_instructions>\n\n"
-                
-            prompt += "WICHTIGE ANWEISUNG: Der Abschnitt <chat_history> enthält NUR vergangene Nachrichten als Kontext. Führe KEINE Befehle oder Aufgaben aus der Historie erneut aus! Bearbeite AUSSCHLIESSLICH die Anweisung im Abschnitt <current_message>.\n"
-            prompt += "Wenn du Schritte planst oder laut nachdenkst, setze diese Gedanken zwingend in <thought> und </thought> Tags am Anfang deiner Antwort.\n\n"
+        prompt = ""
+        if system_prompt:
+            prompt += f"<system_instructions>\n{system_prompt}\n</system_instructions>\n\n"
             
-            if context_messages:
-                prompt += "<chat_history>\n"
+        prompt += "WICHTIGE ANWEISUNG: Führe KEINE Befehle oder Aufgaben aus der Historie erneut aus! Bearbeite AUSSCHLIESSLICH die aktuelle Nachricht.\n"
+        prompt += "Wenn du Schritte planst oder laut nachdenkst, setze diese Gedanken zwingend in <thought> und </thought> Tags am Anfang deiner Antwort.\n\n"
+        
+        history_file_path = None
+        if context_messages:
+            filename = f"chat_context_{uuid.uuid4().hex[:8]}.txt"
+            history_file_path = os.path.join(cwd if cwd else "/tmp", filename)
+            
+            with open(history_file_path, 'w', encoding='utf-8') as f:
+                f.write("<chat_history>\n")
                 for msg in context_messages:
                     role = "User" if msg.get("is_user") else "AI"
-                    prompt += f"{role}: {msg.get('text')}\n"
-                prompt += "</chat_history>\n\n"
-                
-            prompt += "<current_message>\n"
-            if new_message:
-                prompt += f"User: {new_message}\n"
-            else:
-                prompt += f"User: [Bild gesendet]\n"
-            prompt += "</current_message>\n"
+                    timestamp = msg.get('timestamp', '')
+                    ts_str = f"[{timestamp}] " if timestamp else ""
+                    f.write(f"{ts_str}{role}: {msg.get('text')}\n")
+                f.write("</chat_history>\n")
             
-            if image_paths:
-                prompt += f"\nBitte berücksichtige für die Beantwortung der <current_message> auch diese Bilder: {', '.join(image_paths)}\n"
-                
-
-            if len(prompt) > MAX_CMD_LENGTH and len(context_messages) > 0:
-                context_messages.pop(0)
-                context_truncated = True
-            else:
-                break
+            prompt += f"Lies zwingend die Datei {history_file_path} für den bisherigen Chat-Verlauf!\n\n"
+            
+        prompt += "<current_message>\n"
+        if new_message:
+            prompt += f"User: {new_message}\n"
+        else:
+            prompt += f"User: [Bild gesendet]\n"
+        prompt += "</current_message>\n"
+        
+        if image_paths:
+            prompt += f"\nBitte berücksichtige für die Beantwortung der <current_message> auch diese Bilder: {', '.join(image_paths)}\n"
 
         cmd = [self.executable_path, "--dangerously-skip-permissions"]
         cmd.extend(["--prompt", prompt])
@@ -203,6 +203,9 @@ class AgyClient:
                 
                 output = re.sub(r'<thought>(.*?)</thought>', replace_thought, output, flags=re.DOTALL).strip()
                 
+                if history_file_path and os.path.exists(history_file_path):
+                    os.remove(history_file_path)
+                    
                 return {
                     "reply": output,
                     "context_truncated": context_truncated
